@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "akharta",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\bvere\\AppData\\Local\\Temp\\claude\\C--Users-bvere-Desktop-Akharta\\a850e622-314e-457d-af86-41652ece5d65\\scratchpad\\serve.ps1"],
+      "port": 8090
+    }
+  ]
+}

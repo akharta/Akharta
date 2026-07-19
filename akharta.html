@@ -1,0 +1,1796 @@
+<title>Akharta — Taller de novela</title>
+<style>
+:root{
+  --ink:#0C0A09; --surface:#131110; --panel:#1C1917; --paper:#171412;
+  --text:#EBE3D4; --muted:#9C9184; --line:#2E2822; --hover:#252019;
+  --lapis:#C9A227; --lapis-soft:rgba(201,162,39,.16);
+  --amber:#B4703F; --amber-soft:rgba(180,112,63,.16);
+  --danger:#E07A6B; --ok:#7FB68A;
+  --fs-ed:18.5px;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+[hidden]{display:none!important}
+html,body{background:var(--ink);color:var(--text)}
+body{font-family:var(--ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+#app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--lapis);outline-offset:1px;border-radius:4px}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input[type=color]{padding:2px;width:44px;height:32px;cursor:pointer}
+input[type=checkbox]{width:auto;accent-color:var(--lapis)}
+select{appearance:auto}
+textarea{resize:vertical;min-height:90px}
+::placeholder{color:var(--muted);opacity:.7}
+a{color:var(--lapis)}
+
+/* ── Barra superior ── */
+#topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:8px;
+  padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top));
+  background:var(--ink);border-bottom:1px solid var(--line)}
+#btnBack{font-size:24px;line-height:1;width:38px;height:38px;border-radius:9px;color:var(--muted)}
+#btnBack:hover{background:var(--hover);color:var(--text)}
+#topTitle{flex:1;min-width:0;font-family:var(--serif);font-size:17px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topTitle.editable{cursor:pointer}
+#saveDot{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+#saveDot .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);transition:background .2s}
+#saveDot.saving .dot{background:var(--muted)}
+#saveDot.err .dot{background:var(--amber)}
+#btnGear{font-size:19px;width:38px;height:38px;border-radius:9px;color:var(--muted)}
+#btnGear:hover{background:var(--hover);color:var(--text)}
+
+/* ── Estructura ── */
+#shell{display:flex;flex:1;min-height:0}
+#nav{width:232px;flex:none;border-right:1px solid var(--line);background:var(--surface);
+  padding:14px 10px;display:flex;flex-direction:column;gap:4px}
+#nav .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 14px;border-bottom:1px solid var(--line);margin-bottom:10px}
+#nav .brand svg{width:40px;height:40px;flex:none}
+#nav .brand .bt{min-width:0}
+#nav .brand .bt b{display:block;font-family:var(--serif);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nav .brand .bt span{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.navtab{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;color:var(--muted);font-size:14.5px;text-align:left;width:100%}
+.navtab .ic{font-size:16px;width:20px;text-align:center}
+.navtab:hover{background:var(--hover);color:var(--text)}
+.navtab.on{background:var(--lapis-soft);color:var(--lapis);font-weight:600}
+#view{flex:1;min-width:0;overflow-y:auto;padding:20px 18px 40px}
+.wrap{max-width:960px;margin:0 auto}
+.wrap-n{max-width:780px;margin:0 auto}
+
+@media (max-width:820px){
+  #nav{position:fixed;left:0;right:0;bottom:0;width:auto;z-index:55;flex-direction:row;
+    border-right:0;border-top:1px solid var(--line);padding:6px 8px;
+    padding-bottom:calc(6px + env(safe-area-inset-bottom));justify-content:space-around}
+  #nav .brand{display:none}
+  .navtab{flex-direction:column;gap:2px;padding:6px 4px;font-size:10.5px;flex:1;align-items:center}
+  .navtab .ic{font-size:19px;width:auto}
+  #view{padding:16px 14px 110px}
+  body.hasnav #view{padding-bottom:110px}
+}
+
+/* ── Componentes ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;
+  border:1px solid var(--line);background:var(--panel);font-size:14px;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn-p{background:var(--lapis);border-color:var(--lapis);color:var(--ink);font-weight:600}
+.btn-p:hover{background:var(--lapis);filter:brightness(1.08)}
+.btn-d{color:var(--danger);border-color:var(--line)}
+.btn-d:hover{background:rgba(224,122,107,.12)}
+.btn-s{padding:5px 10px;font-size:13px}
+.iconb{width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);border:1px solid var(--line);background:var(--panel)}
+.iconb:hover{background:var(--hover);color:var(--text)}
+.iconb.on{background:var(--lapis-soft);color:var(--lapis);border-color:var(--lapis)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px}
+.grid-w{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:14px}
+.lbl{display:block;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance;line-height:1.25}
+h2{font-size:21px;margin-bottom:4px}
+h3{font-size:16.5px}
+.sect{margin-top:26px}
+.sect>h2{margin-bottom:12px}
+
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line);font-size:13px;max-width:100%}
+.chip.click{cursor:pointer}
+.chip.click:hover{background:var(--hover)}
+.chip .x{color:var(--muted);font-size:14px;padding:0 2px;cursor:pointer}
+.chip .x:hover{color:var(--danger)}
+.chip .cdot{width:8px;height:8px;border-radius:50%;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+
+.subchips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;scrollbar-width:thin}
+.subchips .sc{flex:none;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:13.5px;color:var(--muted)}
+.subchips .sc.on{background:var(--lapis-soft);border-color:var(--lapis);color:var(--lapis);font-weight:600}
+
+.searchrow{display:flex;gap:8px;margin-bottom:14px;align-items:center}
+.searchrow input{flex:1}
+
+.bar{height:9px;border-radius:999px;background:var(--surface);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--lapis);border-radius:999px;transition:width .3s}
+
+.statgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.stat b{display:block;font-size:21px;font-family:var(--serif);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+
+.field{margin-bottom:14px}
+.check-list{display:flex;flex-direction:column;gap:2px;max-height:280px;overflow-y:auto;
+  border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--surface)}
+.check-list label{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;font-size:14px;cursor:pointer}
+.check-list label:hover{background:var(--hover)}
+.check-list .grp{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:8px 8px 3px}
+
+/* ── Biblioteca ── */
+.lib-hero{text-align:center;padding:26px 0 22px}
+.lib-hero svg{width:84px;height:84px}
+.lib-hero h1{font-size:34px;letter-spacing:.24em;margin-top:12px;font-weight:600}
+.lib-hero .sub{color:var(--muted);letter-spacing:.34em;text-transform:uppercase;font-size:12px;margin-top:2px}
+.saga-name{font-family:var(--serif);font-size:19px;font-weight:600;cursor:pointer;border-radius:6px;padding:2px 6px;margin-left:-6px}
+.saga-name:hover{background:var(--hover)}
+.bookcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;text-align:left;display:flex;flex-direction:column}
+.bookcard:hover{border-color:var(--lapis)}
+.bookcard .cov{aspect-ratio:2/2.6;background:var(--surface);display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:44px;color:var(--lapis);border-bottom:1px solid var(--line)}
+.bookcard .cov img{width:100%;height:100%;object-fit:cover}
+.bookcard .bi{padding:10px 12px}
+.bookcard .bi b{display:block;font-family:var(--serif);font-size:15px;margin-bottom:3px}
+.bookcard .bi .small{color:var(--muted)}
+.estado{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+.estado.en_marcha{color:var(--lapis);border-color:var(--lapis)}
+.estado.revision{color:var(--amber);border-color:var(--amber)}
+.estado.terminado{color:var(--ok);border-color:var(--ok)}
+
+/* ── Resumen ── */
+.hero{display:flex;gap:18px;align-items:flex-start}
+.hero .cov{width:110px;flex:none;aspect-ratio:2/2.6;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:40px;color:var(--lapis);overflow:hidden}
+.hero .cov img{width:100%;height:100%;object-fit:cover}
+.hero h2{font-size:26px}
+.watermark{position:relative}
+.watermark>svg.wm{position:absolute;right:0;top:0;width:150px;height:150px;opacity:.05;pointer-events:none}
+
+/* ── Capítulos ── */
+.chapcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;text-align:left;display:flex;flex-direction:column}
+.chapcard:hover{border-color:var(--lapis)}
+.chapcard .img{height:90px;background:var(--surface);border-bottom:1px solid var(--line)}
+.chapcard .img img{width:100%;height:100%;object-fit:cover;display:block}
+.chapcard .ci{padding:11px 13px;display:flex;flex-direction:column;gap:5px;flex:1}
+.chapcard .meta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted)}
+.chapcard .sdot{width:8px;height:8px;border-radius:50%;flex:none}
+.chapcard b{font-family:var(--serif);font-size:15.5px}
+.chapcard .ext{font-size:12.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.reorder-row{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.reorder-row b{flex:1;font-family:var(--serif);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Mundo ── */
+.entcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:11px;padding:12px 14px;cursor:pointer;text-align:left;width:100%}
+.entcard:hover{border-color:var(--lapis)}
+.entcard b{font-family:var(--serif);font-size:15.5px;display:block;margin-bottom:3px}
+.entcard .desc{font-size:12.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.entcard img{width:100%;height:100px;object-fit:cover;border-radius:8px;margin-bottom:8px}
+.tree{list-style:none}
+.tree ul{list-style:none;margin-left:20px;border-left:1px solid var(--line);padding-left:8px}
+.tnode{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:8px}
+.tnode:hover{background:var(--hover)}
+.tnode .caret{width:24px;height:24px;flex:none;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;transition:transform .15s}
+.tnode .caret.open{transform:rotate(90deg)}
+.tnode .tn{flex:1;text-align:left;font-size:14.5px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── Cronología ── */
+.tl-axis{position:relative;padding-left:26px}
+.tl-axis:before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.hito{position:relative;margin-bottom:14px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;cursor:pointer}
+.hito:hover{border-color:var(--lapis)}
+.hito .node{position:absolute;left:-23px;top:16px;width:13px;height:13px;border-radius:50%;border:2px solid var(--ink)}
+.hito .anchor{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hito b{font-family:var(--serif);font-size:15.5px;display:block;margin:2px 0 4px}
+
+/* ── Logros ── */
+.badge{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;opacity:.45}
+.badge.won{opacity:1;border-color:var(--lapis)}
+.badge .bic{font-size:22px;width:40px;height:40px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--line)}
+.badge.won .bic{background:var(--lapis-soft);border-color:var(--lapis)}
+.badge b{display:block;font-size:14px}
+.badge span{font-size:12px;color:var(--muted)}
+
+/* ── Editor de capítulo ── */
+.ed-head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.ch-title{font-family:var(--serif);font-size:20px;font-weight:600;background:transparent;border:0;padding:6px 2px;flex:1;min-width:0;border-radius:6px}
+.ch-title:hover{background:var(--hover)}
+.ed-tools{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:5px;flex-wrap:wrap;
+  background:var(--ink);padding:7px 0;border-bottom:1px solid var(--line);margin-bottom:12px}
+.ed-tools .tb{min-width:34px;height:34px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:14px;color:var(--muted)}
+.ed-tools .tb:hover{background:var(--hover);color:var(--text)}
+.ed-tools .tb.on{background:var(--lapis-soft);color:var(--lapis);border-color:var(--lapis)}
+.ed-tools .tb.bld{font-weight:800}.ed-tools .tb.itl{font-style:italic}.ed-tools .tb.und{text-decoration:underline}
+.ed-tools select{width:auto;padding:6px 8px;font-size:13px}
+.ed-count{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+#findBar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;margin-bottom:12px}
+#findBar input[type=text]{flex:1;min-width:120px}
+#findBar label{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);white-space:nowrap}
+#ed{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px 22px 40vh;
+  min-height:55vh;font-family:var(--serif);font-size:var(--fs-ed);line-height:1.75;caret-color:var(--lapis)}
+#ed:focus{outline:none;border-color:var(--lapis)}
+#ed p,#ed div{margin:0 0 .5em}
+#ed.sp-compacto p,#ed.sp-compacto div{margin:0}
+#ed.sp-amplio p,#ed.sp-amplio div{margin:0 0 1.1em}
+#ed.ind p,#ed.ind div{text-indent:1.5em}
+#ed h3{font-size:1.25em;margin:1.2em 0 .6em;text-indent:0!important;text-align:center;letter-spacing:.04em}
+
+/* ── Lector ── */
+.ovl{position:fixed;inset:0;z-index:80;background:var(--paper);overflow-y:auto;padding:26px 18px 80px}
+.ovl .inner{max-width:640px;margin:0 auto;font-family:var(--serif);font-size:calc(var(--fs-ed) + 1px);line-height:1.85}
+.ovl .inner h1{font-size:26px;text-align:center;margin:20px 0 30px}
+.ovl .inner p,.ovl .inner div{margin:0 0 .5em}
+.ovl.ind .inner p,.ovl.ind .inner div{text-indent:1.5em}
+.ovl-close{position:fixed;top:calc(12px + env(safe-area-inset-top));right:14px;z-index:81}
+body.focusmode #topbar,body.focusmode #nav{display:none}
+
+/* ── Panel lateral (drawer) ── */
+#backdrop{position:fixed;inset:0;z-index:64;background:rgba(0,0,0,.5)}
+#drawer{position:fixed;top:0;right:0;bottom:0;z-index:65;width:min(400px,94vw);background:var(--surface);
+  border-left:1px solid var(--line);display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top);box-shadow:-12px 0 40px rgba(0,0,0,.4)}
+#drawer .dtabs{display:flex;border-bottom:1px solid var(--line)}
+#drawer .dtabs button{flex:1;padding:13px 6px;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent}
+#drawer .dtabs button.on{color:var(--lapis);border-bottom-color:var(--lapis);font-weight:600}
+#drawerBody{flex:1;overflow-y:auto;padding:16px 16px calc(30px + env(safe-area-inset-bottom))}
+.scene{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:9px 11px;margin-bottom:8px}
+.scene .sh{display:flex;align-items:center;gap:6px}
+.scene .sh b{flex:1;font-size:14px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scene .mini{width:28px;height:28px;border-radius:7px;font-size:13px;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.scene .mini:hover{background:var(--hover);color:var(--text)}
+.vrow{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.vrow span{flex:1;color:var(--muted)}
+
+/* ── Ajustes ── */
+.themecard{border:2px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;text-align:left;background:var(--panel)}
+.themecard.on{border-color:var(--lapis)}
+.themecard .sw{display:flex;gap:4px;margin-bottom:8px}
+.themecard .sw i{width:20px;height:20px;border-radius:6px;border:1px solid rgba(128,128,128,.35)}
+.themecard b{font-size:13.5px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{padding:7px 16px;font-size:13.5px;color:var(--muted);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--lapis-soft);color:var(--lapis);font-weight:600}
+.trow{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.trow:last-child{border-bottom:0}
+.trow .tinfo{flex:1;min-width:0}
+.trow .tinfo b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .tinfo span{font-size:12px;color:var(--muted)}
+
+/* ── Diálogo ── */
+#dlg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px}
+#dlg .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;width:min(420px,100%);box-shadow:0 24px 60px rgba(0,0,0,.5)}
+#dlg h3{margin-bottom:8px}
+#dlgMsg{color:var(--muted);font-size:14px;margin-bottom:12px}
+#dlgInput{margin-bottom:14px}
+#dlg .bts{display:flex;justify-content:flex-end;gap:8px}
+
+/* ── Toast ── */
+#toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  z-index:110;background:var(--panel);border:1px solid var(--line);color:var(--text);
+  padding:10px 18px;border-radius:999px;font-size:13.5px;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:820px){#toast{bottom:calc(96px + env(safe-area-inset-bottom))}}
+
+/* ── Impresión ── */
+#printview{display:none}
+@media print{
+  #app,#toast,#dlg,#drawer,#backdrop,.ovl{display:none!important}
+  html,body{background:#fff;color:#000}
+  #printview{display:block;font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6;color:#000}
+  #printview .ptitle{text-align:center;font-size:22pt;margin:40vh 0 0;page-break-after:always}
+  #printview .pchap{page-break-before:always}
+  #printview .pchap h2{text-align:center;font-size:15pt;margin:0 0 24pt}
+  #printview p,#printview div{margin:0 0 6pt;text-indent:1.5em}
+}
+</style>
+
+<div id="app">
+  <header id="topbar">
+    <button id="btnBack" aria-label="Atrás" hidden>‹</button>
+    <div id="topTitle"></div>
+    <div id="saveDot"><span class="dot"></span><span id="saveTxt">Guardado</span></div>
+    <button id="btnGear" aria-label="Ajustes">⚙</button>
+  </header>
+  <div id="shell">
+    <nav id="nav" hidden></nav>
+    <main id="view"></main>
+  </div>
+</div>
+
+<div id="dlg" hidden>
+  <div class="box" role="dialog" aria-modal="true">
+    <h3 id="dlgTitle"></h3>
+    <div id="dlgMsg"></div>
+    <input id="dlgInput" type="text" hidden>
+    <div class="bts">
+      <button class="btn" id="dlgCancel">Cancelar</button>
+      <button class="btn btn-p" id="dlgOk">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+<div id="printview"></div>
+<input type="file" id="fileJson" accept="application/json,.json" hidden>
+<input type="file" id="fileImg" accept="image/*" hidden>
+<script>
+'use strict';
+/* ═══════════ Núcleo: utilidades ═══════════ */
+const K='akharta_v2';
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=new Intl.NumberFormat('es-ES');
+const fmtN=n=>nf.format(n||0);
+const fmtDate=ts=>ts?new Date(ts).toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'}):'—';
+const fmtDT=ts=>new Date(ts).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+const today=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`};
+function plain(html){
+  const d=document.createElement('div');
+  d.innerHTML=(html||'').replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi,'\n').replace(/<br[^>]*>/gi,'\n');
+  return (d.textContent||'').replace(/\n{3,}/g,'\n\n');
+}
+function countWords(html){const t=plain(html).trim();return t?t.split(/\s+/).length:0}
+const readMins=w=>Math.max(1,Math.round(w/(state.meta.wpm||200)));
+const fmtMins=m=>m<60?`${m} min`:`${Math.floor(m/60)} h ${m%60} min`;
+const ESTADOS={idea:'Idea',en_marcha:'En marcha',revision:'En revisión',terminado:'Terminado'};
+const STATUS={borrador:['Borrador','#9C9184'],revisado:['Revisado','#B4703F'],final:['Final','#7FB68A']};
+const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
+const LOGO_GOLD='#C9A227';
+const logoSVG=(cls='')=>`<svg class="${cls}" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <circle cx="32" cy="32" r="29" fill="none" stroke="${LOGO_GOLD}" stroke-width="1.6"/>
+  <circle cx="32" cy="32" r="23.5" fill="none" stroke="${LOGO_GOLD}" stroke-width="1"/>
+  <path d="M32 1.5 L34.4 6.8 L32 9.6 L29.6 6.8 Z M32 62.5 L34.4 57.2 L32 54.4 L29.6 57.2 Z M1.5 32 L6.8 29.6 L9.6 32 L6.8 34.4 Z M62.5 32 L57.2 29.6 L54.4 32 L57.2 34.4 Z" fill="${LOGO_GOLD}"/>
+  <text x="32" y="42.5" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="29" font-style="italic" fill="${LOGO_GOLD}">A</text>
+</svg>`;
+
+/* ═══════════ Temas ═══════════ */
+const THEMES={
+  oro:{name:'Oro de Akharta',dark:true,v:{ink:'#0C0A09',surface:'#131110',panel:'#1C1917',paper:'#171412',text:'#EBE3D4',muted:'#9C9184',line:'#2E2822',hover:'#252019',lapis:'#C9A227','lapis-soft':'rgba(201,162,39,.16)',amber:'#B4703F','amber-soft':'rgba(180,112,63,.16)',danger:'#E07A6B',ok:'#7FB68A'}},
+  nissa:{name:'Lago Nïssa',dark:true,v:{ink:'#061214',surface:'#0B1B1E',panel:'#122629',paper:'#0E2023',text:'#DAE7E3',muted:'#84A29C',line:'#1D373B',hover:'#173033',lapis:'#4FB3A6','lapis-soft':'rgba(79,179,166,.16)',amber:'#C08A4E','amber-soft':'rgba(192,138,78,.16)',danger:'#E07A6B',ok:'#7FB68A'}},
+  pergamino:{name:'Pergamino',dark:false,v:{ink:'#EDE3CD',surface:'#F3EBD8',panel:'#FAF4E5',paper:'#FDF9EE',text:'#3B3226',muted:'#83765F',line:'#D9CCAE',hover:'#EFE5CC',lapis:'#8A6B14','lapis-soft':'rgba(138,107,20,.13)',amber:'#A6672F','amber-soft':'rgba(166,103,47,.14)',danger:'#B0453A',ok:'#3E7A52'}},
+  alba:{name:'Alba',dark:false,v:{ink:'#E9EDF2',surface:'#F0F3F7',panel:'#FAFBFD',paper:'#FDFEFF',text:'#2B3440',muted:'#68758a',line:'#D3DAE4',hover:'#E4E9F1',lapis:'#3F6FA6','lapis-soft':'rgba(63,111,166,.12)',amber:'#A6761F','amber-soft':'rgba(166,118,31,.13)',danger:'#B0453A',ok:'#3E7A52'}},
+  noche:{name:'Noche',dark:true,v:{ink:'#0B0F16',surface:'#10151E',panel:'#171E2A',paper:'#131926',text:'#DDE3EC',muted:'#8B95A6',line:'#242D3D',hover:'#1C2534',lapis:'#7A9CC9','lapis-soft':'rgba(122,156,201,.15)',amber:'#B4894F','amber-soft':'rgba(180,137,79,.15)',danger:'#E07A6B',ok:'#7FB68A'}}
+};
+function applyTheme(){
+  const t=THEMES[state.meta.themeId]||THEMES.oro;
+  const st=document.documentElement.style;
+  for(const[k,v]of Object.entries(t.v))st.setProperty('--'+k,v);
+  if(state.meta.accent){st.setProperty('--lapis',state.meta.accent);st.setProperty('--lapis-soft',state.meta.accent+'29')}
+  st.setProperty('--fs-ed',{s:'16px',m:'18.5px',l:'21px'}[state.meta.fontScale||'m']);
+  st.setProperty('color-scheme',t.dark?'dark':'light');
+  let m=document.querySelector('meta[name=theme-color]');
+  if(!m){m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m)}
+  m.content=t.v.ink;
+}
+
+/* ═══════════ Estado: defaults, migración, normalización ═══════════ */
+function defMeta(){return{themeId:'oro',accent:null,fontScale:'m',wpm:200,
+  catColors:{characters:'#3F6FA6',places:'#3B7A57',groups:'#7A4E9C',easterEggs:'#A6761F'},
+  charFields:[{id:'f_edad',label:'Edad'},{id:'f_nac',label:'Año de nacimiento'},{id:'f_gen',label:'Género'}],
+  currentSaga:null,currentBook:null,lastBackup:null,created:Date.now()}}
+function blank(){return{sagas:[],trash:[],meta:defMeta()}}
+function newSaga(name){return{id:uid(),name,characters:[],places:[],groups:[],tags:[],
+  timelines:[{id:uid(),name:'Cronología de '+name,hitos:[]}],languages:[],easterEggs:[],books:[]}}
+function newBook(name){return{id:uid(),name,cover:null,goalWords:0,estado:'en_marcha',idea:'',sinopsis:'',acts:[],chapters:[],updated:Date.now()}}
+function newChapter(){return{id:uid(),title:'Capítulo sin título',body:'',indent:true,spacing:'normal',image:null,
+  links:[],tagIds:[],actId:null,status:'borrador',scenes:[],versions:[],updated:Date.now(),created:Date.now()}}
+
+function migrate(d){
+  if(!d||typeof d!=='object')return blank();
+  if(Array.isArray(d.sagas))return d;
+  if(Array.isArray(d.chapters)){
+    const s=newSaga('Akharta'),b=newBook('Libro I');
+    b.chapters=d.chapters;s.books=[b];
+    return{sagas:[s],trash:[],meta:d.meta||defMeta()};
+  }
+  return blank();
+}
+function normalize(){
+  if(!Array.isArray(state.sagas))state.sagas=[];
+  if(!Array.isArray(state.trash))state.trash=[];
+  state.meta=Object.assign(defMeta(),state.meta||{});
+  if(state.meta.theme){state.meta.themeId=state.meta.theme==='light'?'pergamino':'oro';delete state.meta.theme}
+  if(!THEMES[state.meta.themeId])state.meta.themeId='oro';
+  state.meta.catColors=Object.assign(defMeta().catColors,state.meta.catColors||{});
+  if(!Array.isArray(state.meta.charFields)||!state.meta.charFields.length)state.meta.charFields=defMeta().charFields;
+  for(const s of state.sagas){
+    s.id=s.id||uid();s.name=s.name||'Saga sin nombre';
+    for(const k of['characters','places','groups','tags','languages','easterEggs','books'])if(!Array.isArray(s[k]))s[k]=[];
+    if(s.timeline&&!s.timelines)s.timelines=[s.timeline],delete s.timeline;
+    if(!Array.isArray(s.timelines))s.timelines=[];
+    if(!s.timelines.length)s.timelines.push({id:uid(),name:'Cronología de '+s.name,hitos:[]});
+    for(const t of s.timelines){t.id=t.id||uid();t.name=t.name||'Cronología';if(!Array.isArray(t.hitos))t.hitos=[];
+      for(const h of t.hitos)Object.assign(h,{id:h.id||uid(),kind:h.kind||'evento',title:h.title||'Hito',anchor:h.anchor||'',order:h.order??10,body:h.body||'',chapterIds:Array.isArray(h.chapterIds)?h.chapterIds:[]})}
+    for(const c of s.characters)Object.assign(c,{id:c.id||uid(),name:c.name||'Sin nombre',role:c.role||'',body:c.body||'',image:c.image||null,rels:Array.isArray(c.rels)?c.rels:[],fields:c.fields||{}});
+    for(const p of s.places)Object.assign(p,{id:p.id||uid(),name:p.name||'Nueva ubicación',body:p.body||'',parentId:p.parentId||null});
+    for(const g of s.groups)Object.assign(g,{id:g.id||uid(),name:g.name||'Nuevo grupo',body:g.body||'',members:Array.isArray(g.members)?g.members:[],chapterIds:Array.isArray(g.chapterIds)?g.chapterIds:[]});
+    for(const t of s.tags)Object.assign(t,{id:t.id||uid(),name:t.name||'Etiqueta',color:t.color||TAGPAL[0]});
+    for(const l of s.languages){Object.assign(l,{id:l.id||uid(),name:l.name||'Idioma',words:Array.isArray(l.words)?l.words:[]});
+      for(const w of l.words)Object.assign(w,{id:w.id||uid(),term:w.term||'',meaning:w.meaning||'',type:w.type||'',notes:w.notes||''})}
+    for(const e of s.easterEggs)Object.assign(e,{id:e.id||uid(),title:e.title||'Nuevo secreto',body:e.body||'',chapterIds:Array.isArray(e.chapterIds)?e.chapterIds:[]});
+    for(const b of s.books){
+      Object.assign(b,{id:b.id||uid(),name:b.name||'Libro',cover:b.cover||null,goalWords:b.goalWords||0,
+        estado:ESTADOS[b.estado]?b.estado:'en_marcha',idea:b.idea||'',sinopsis:b.sinopsis||''});
+      if(!Array.isArray(b.acts))b.acts=[];
+      if(!Array.isArray(b.chapters))b.chapters=[];
+      for(const a of b.acts)Object.assign(a,{id:a.id||uid(),name:a.name||'Nuevo acto',order:a.order??10});
+      for(const c of b.chapters)Object.assign(c,{id:c.id||uid(),title:c.title||'Capítulo sin título',body:c.body||'',
+        indent:c.indent!==false,spacing:['compacto','normal','amplio'].includes(c.spacing)?c.spacing:'normal',
+        image:c.image||null,links:Array.isArray(c.links)?c.links:[],tagIds:Array.isArray(c.tagIds)?c.tagIds:[],
+        actId:c.actId||null,status:STATUS[c.status]?c.status:'borrador',
+        scenes:Array.isArray(c.scenes)?c.scenes:[],versions:Array.isArray(c.versions)?c.versions:[],
+        updated:c.updated||Date.now(),created:c.created||Date.now()});
+    }
+  }
+  const sagaIds=state.sagas.map(s=>s.id);
+  if(state.meta.currentSaga&&!sagaIds.includes(state.meta.currentSaga))state.meta.currentSaga=null;
+}
+function purgeTrash(){
+  const lim=Date.now()-30*864e5;
+  state.trash=state.trash.filter(t=>t.ts>lim).slice(0,25);
+}
+let state;
+function load(){
+  let d=null;
+  try{const raw=localStorage.getItem(K);if(raw)d=JSON.parse(raw)}catch(e){}
+  if(!d){
+    const seed=document.getElementById('akharta-seed');
+    if(seed){try{d=JSON.parse(seed.textContent)}catch(e){}}
+  }
+  state=migrate(d);
+  normalize();purgeTrash();
+}
+
+/* ═══════════ Guardado ═══════════ */
+let saveT=null;
+function setDot(st){
+  const el=$('#saveDot');el.className=st;
+  $('#saveTxt').textContent={saving:'Guardando…',saved:'Guardado',err:'Sin guardado'}[st];
+}
+function save(){
+  try{localStorage.setItem(K,JSON.stringify(state));setDot('saved')}
+  catch(e){setDot('err');toast('No se pudo guardar (almacenamiento lleno o privado). Exporta una copia .json.')}
+}
+function scheduleSave(){setDot('saving');clearTimeout(saveT);saveT=setTimeout(save,400)}
+
+/* ═══════════ Toast y diálogos ═══════════ */
+let toastT=null;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400)}
+let dlgResolve=null;
+function dlgShow({title,msg='',input=null,ok='Aceptar',danger=false}){
+  return new Promise(res=>{
+    dlgResolve=res;
+    $('#dlgTitle').textContent=title;
+    $('#dlgMsg').textContent=msg;$('#dlgMsg').hidden=!msg;
+    const inp=$('#dlgInput');
+    if(input===null){inp.hidden=true}else{inp.hidden=false;inp.value=input;setTimeout(()=>{inp.focus();inp.select()},50)}
+    const okb=$('#dlgOk');okb.textContent=ok;
+    okb.className='btn '+(danger?'btn-d':'btn-p');
+    $('#dlg').hidden=false;
+    if(input===null)setTimeout(()=>okb.focus(),50);
+  });
+}
+function dlgClose(val){if(!dlgResolve)return;$('#dlg').hidden=true;const r=dlgResolve;dlgResolve=null;r(val)}
+async function askText(title,val='',msg=''){const r=await dlgShow({title,msg,input:val});return r===false?null:($('#dlgInput').value.trim()||null)}
+async function askNum(title,val,msg=''){const r=await dlgShow({title,msg,input:String(val)});if(r===false)return null;const n=parseInt($('#dlgInput').value.replace(/[.\s]/g,''),10);return isNaN(n)?null:n}
+async function askConfirm(msg,ok='Eliminar'){return await dlgShow({title:'¿Seguro?',msg,ok,danger:ok==='Eliminar'})!==false}
+async function askConfirm2(msg){
+  if(!await askConfirm(msg))return false;
+  return askConfirm('Esta acción es definitiva y no pasa por la papelera. Confirma otra vez.','Eliminar definitivamente');
+}
+function initDlg(){
+  $('#dlgOk').onclick=()=>dlgClose(true);
+  $('#dlgCancel').onclick=()=>dlgClose(false);
+  $('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')dlgClose(false)});
+  $('#dlgInput').addEventListener('keydown',e=>{if(e.key==='Enter')dlgClose(true)});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#dlg').hidden)dlgClose(false)});
+}
+
+/* ═══════════ Archivos e imágenes ═══════════ */
+function pickImage(cb){
+  const f=$('#fileImg');
+  f.onchange=async()=>{if(f.files[0]){cb(await resizeImg(f.files[0]))}f.value=''};
+  f.click();
+}
+function resizeImg(file){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=820,sc=Math.min(1,MAX/Math.max(img.width,img.height));
+        const c=document.createElement('canvas');
+        c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        res(c.toDataURL('image/jpeg',0.72));
+      };
+      img.src=r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+/* ═══════════ Acceso al modelo ═══════════ */
+const sagaById=id=>state.sagas.find(s=>s.id===id);
+const curSaga=()=>sagaById(state.meta.currentSaga);
+function curBook(){const s=curSaga();return s?s.books.find(b=>b.id===state.meta.currentBook):null}
+function findChap(saga,id){
+  for(const b of saga.books){const c=b.chapters.find(c=>c.id===id);if(c)return{book:b,ch:c}}
+  return null;
+}
+const chapWords=ch=>countWords(ch.body);
+const bookWords=b=>b.chapters.reduce((n,c)=>n+chapWords(c),0);
+const charById=(s,id)=>s.characters.find(c=>c.id===id);
+const placeById=(s,id)=>s.places.find(p=>p.id===id);
+function allHitosLinking(saga,chId){
+  const out=[];
+  for(const tl of saga.timelines)for(const h of tl.hitos)if(h.chapterIds.includes(chId))out.push({tl,h});
+  return out;
+}
+function placeDescendants(saga,id){
+  const out=new Set();
+  const walk=pid=>{for(const p of saga.places)if(p.parentId===pid&&!out.has(p.id)){out.add(p.id);walk(p.id)}};
+  walk(id);return out;
+}
+
+/* ═══════════ Papelera ═══════════ */
+function toTrash(kind,label,ctx,data){
+  state.trash.unshift({id:uid(),kind,label,ts:Date.now(),ctx,data});
+  state.trash=state.trash.slice(0,25);
+  scheduleSave();
+}
+const TRASH_KINDS={chapter:'Capítulo',character:'Personaje',place:'Ubicación',group:'Grupo',egg:'Easter egg',tag:'Etiqueta',language:'Idioma',timeline:'Cronología',hito:'Hito',word:'Palabra',act:'Acto'};
+function restoreTrash(id){
+  const i=state.trash.findIndex(t=>t.id===id);if(i<0)return;
+  const t=state.trash[i],s=sagaById(t.ctx.sagaId);
+  const fail=m=>toast('No se puede restaurar: '+m);
+  if(!s)return fail('su saga ya no existe.');
+  let target=null;
+  switch(t.kind){
+    case 'chapter':case 'act':{
+      const b=s.books.find(b=>b.id===t.ctx.bookId);
+      if(!b)return fail('su libro ya no existe.');
+      target=t.kind==='chapter'?b.chapters:b.acts;break;
+    }
+    case 'character':target=s.characters;break;
+    case 'place':target=s.places;
+      if(t.data.parentId&&!placeById(s,t.data.parentId))t.data.parentId=null;break;
+    case 'group':target=s.groups;break;
+    case 'egg':target=s.easterEggs;break;
+    case 'tag':target=s.tags;break;
+    case 'language':target=s.languages;break;
+    case 'timeline':target=s.timelines;break;
+    case 'hito':{
+      const tl=s.timelines.find(x=>x.id===t.ctx.tlId);
+      if(!tl)return fail('su cronología ya no existe.');
+      target=tl.hitos;break;
+    }
+    case 'word':{
+      const l=s.languages.find(x=>x.id===t.ctx.langId);
+      if(!l)return fail('su idioma ya no existe.');
+      target=l.words;break;
+    }
+    default:return fail('tipo desconocido.');
+  }
+  target.push(t.data);
+  state.trash.splice(i,1);
+  scheduleSave();toast(`${TRASH_KINDS[t.kind]} restaurado`);render();
+}
+
+/* ═══════════ Exportaciones ═══════════ */
+function dl(name,blob){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+}
+const slug=s=>(s||'akharta').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'akharta';
+function markBackup(){state.meta.lastBackup=Date.now();scheduleSave()}
+function expJson(){
+  dl(`akharta-copia-${today()}.json`,new Blob([JSON.stringify(state)],{type:'application/json'}));
+  markBackup();toast('Copia .json descargada');
+}
+function pickJsonImport(){
+  const f=$('#fileJson');
+  f.onchange=async()=>{
+    const file=f.files[0];f.value='';if(!file)return;
+    let d;
+    try{d=JSON.parse(await file.text())}catch(e){toast('El archivo no es un JSON válido');return}
+    const cand=migrate(d);
+    if(!Array.isArray(cand.sagas)){toast('El archivo no parece una copia de Akharta');return}
+    if(!await askConfirm('Importar reemplazará TODO el contenido actual por el del archivo. ¿Continuar?','Importar'))return;
+    state=cand;normalize();purgeTrash();
+    state.meta.currentSaga=null;state.meta.currentBook=null;
+    save();applyTheme();route=[{v:'lib'}];render();
+    toast('Copia importada correctamente');
+  };
+  f.click();
+}
+function expClone(){
+  const root=document.documentElement.cloneNode(true);
+  for(const sel of['#view','#nav','#printview','#toast','#drawer','#backdrop'])
+    {const el=root.querySelector(sel);if(el)el.innerHTML=''}
+  const d=root.querySelector('#dlg');if(d)d.setAttribute('hidden','');
+  const oldSeed=root.querySelector('#akharta-seed');if(oldSeed)oldSeed.remove();
+  const seed=document.createElement('script');
+  seed.type='application/json';seed.id='akharta-seed';
+  seed.textContent=JSON.stringify(state).replace(/<\//g,'<\\/');
+  (root.querySelector('body')||root).appendChild(seed);
+  dl(`akharta-clon-${today()}.html`,new Blob(['<!doctype html>\n'+root.outerHTML],{type:'text/html'}));
+  markBackup();toast('Clon .html descargado');
+}
+function expDoc(book){
+  const chs=book.chapters.map((c,i)=>
+    `<h2 style="page-break-before:${i?'always':'auto'};text-align:center">${esc(c.title)}</h2>${c.body}`).join('\n');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc(book.name)}</title></head><body style="font-family:Georgia,serif;font-size:12pt"><h1 style="text-align:center">${esc(book.name)}</h1>${chs}</body></html>`;
+  dl(`${slug(book.name)}-${today()}.doc`,new Blob([html],{type:'application/msword'}));
+  toast('Word .doc descargado');
+}
+function expTxt(book,noBlank){
+  let out=`${book.name.toUpperCase()}\n\n\n`+book.chapters.map((c,i)=>`${i+1}. ${c.title}\n\n${plain(c.body).trim()}`).join('\n\n\n');
+  if(noBlank)out=out.split('\n').filter(l=>l.trim()).join('\n');
+  dl(`${slug(book.name)}-${today()}.txt`,new Blob([out],{type:'text/plain;charset=utf-8'}));
+  toast('Texto .txt descargado');
+}
+function expPdf(book){
+  $('#printview').innerHTML=`<div class="ptitle">${esc(book.name)}</div>`+
+    book.chapters.map(c=>`<div class="pchap"><h2>${esc(c.title)}</h2>${c.body}</div>`).join('');
+  window.print();
+}
+
+/* ═══════════ Enrutador ═══════════ */
+let route=[{v:'lib'}];
+let overlays=[]; /* funciones de cierre (lector, concentración, panel) */
+let histOK=true,exitHintTs=0;
+function pushHist(){try{history.pushState({n:route.length+overlays.length},'')}catch(e){histOK=false}}
+function go(r){route.push(r);pushHist();render()}
+function swapTop(patch){Object.assign(route[route.length-1],patch);render()}
+function goBack(){
+  if(overlays.length){overlays.pop()();return}
+  if(route.length>1){route.pop();render();return}
+  const now=Date.now();
+  if(now-exitHintTs>2200){exitHintTs=now;toast('Pulsa atrás otra vez para salir')}
+}
+window.addEventListener('popstate',()=>{
+  if(overlays.length){overlays.pop()();return}
+  if(route.length>1){route.pop();render()}
+});
+function openOverlay(closeFn){overlays.push(closeFn);pushHist()}
+function closeOverlayUI(closeFn){ /* cierre desde botón ✕ */
+  const i=overlays.indexOf(closeFn);
+  if(i>=0)overlays.splice(i,1);
+  closeFn();
+}
+
+/* Sesión de palabras */
+const sessBase={};
+function ensureSession(b){if(!(b.id in sessBase))sessBase[b.id]=bookWords(b)}
+const sessDelta=b=>bookWords(b)-(sessBase[b.id]??bookWords(b));
+
+/* Versiones */
+function snapshot(ch,force){
+  const last=ch.versions[ch.versions.length-1];
+  if(force||!last||last.body!==ch.body){
+    if(!force&&!ch.body&&!last)return;
+    ch.versions.push({ts:Date.now(),body:ch.body});
+    while(ch.versions.length>8)ch.versions.shift();
+    scheduleSave();
+    return true;
+  }
+  return false;
+}
+</script>
+<script>
+'use strict';
+/* ═══════════ Render maestro ═══════════ */
+const view=()=>$('#view');
+function rTop(){return route[route.length-1]}
+function render(){
+  const r=rTop();
+  updateTopbar(r);renderNav(r);
+  const v=view();v.scrollTop=0;
+  switch(r.v){
+    case 'lib':renderLib();break;
+    case 'book':renderBook(r);break;
+    case 'settings':renderSettings();break;
+    case 'chap':renderChap(r);break;
+    case 'tl':renderTl(r);break;
+    case 'lang':renderLang(r);break;
+    case 'ent':renderEnt(r);break;
+    default:route=[{v:'lib'}];renderLib();
+  }
+}
+function updateTopbar(r){
+  $('#btnBack').hidden=route.length<2;
+  const t=$('#topTitle');t.classList.remove('editable');t.onclick=null;
+  let title='Biblioteca';
+  if(r.v==='book'){const b=curBook();title=b?b.name:'Libro';
+    t.classList.add('editable');t.onclick=renameCurBook;}
+  else if(r.v==='settings')title='Ajustes';
+  else if(r.v==='chap'){const s=curSaga(),f=s&&findChap(s,r.id);title=f?f.book.name:'Capítulo'}
+  else if(r.v==='tl'){const s=curSaga(),tl=s&&s.timelines.find(x=>x.id===r.id);title=tl?tl.name:'Cronología'}
+  else if(r.v==='lang'){const s=curSaga(),l=s&&s.languages.find(x=>x.id===r.id);title=l?l.name:'Idioma'}
+  else if(r.v==='ent')title={character:'Personaje',place:'Ubicación',group:'Grupo',hito:'Hito',egg:'Easter egg',word:'Palabra',act:'Acto'}[r.kind]||'Ficha';
+  t.textContent=title;
+}
+async function renameCurBook(){
+  const b=curBook();if(!b)return;
+  const n=await askText('Renombrar libro',b.name);
+  if(n){b.name=n;b.updated=Date.now();scheduleSave();render()}
+}
+const TABS=[['resumen','◈','Resumen'],['caps','✦','Capítulos'],['mundo','☾','Mundo'],['actos','▦','Actos'],['logros','★','Logros']];
+function renderNav(r){
+  const nav=$('#nav');
+  const show=r.v==='book';
+  nav.hidden=!show;document.body.classList.toggle('hasnav',show);
+  if(!show){nav.innerHTML='';return}
+  const s=curSaga(),b=curBook();
+  nav.innerHTML=`<div class="brand">${logoSVG()}<div class="bt"><b>${esc(s?.name||'')}</b><span>${esc(b?.name||'')}</span></div></div>`+
+    TABS.map(([id,ic,lb])=>`<button class="navtab ${r.tab===id?'on':''}" onclick="setTab('${id}')"><span class="ic">${ic}</span><span>${lb}</span></button>`).join('');
+}
+function setTab(tab){const r=rTop();r.tab=tab;render()}
+
+/* ═══════════ Biblioteca ═══════════ */
+function renderLib(){
+  const sagas=state.sagas.map(s=>{
+    const w=s.books.reduce((n,b)=>n+bookWords(b),0);
+    const books=s.books.map(b=>{
+      const bw=bookWords(b);
+      return `<button class="bookcard" onclick="openBook('${s.id}','${b.id}')">
+        <div class="cov">${b.cover?`<img src="${b.cover}" alt="">`:esc((b.name||'L')[0])}</div>
+        <div class="bi"><b>${esc(b.name)}</b>
+        <span class="estado ${b.estado}">${ESTADOS[b.estado]}</span>
+        <div class="small muted num" style="margin-top:5px">${b.chapters.length} cap. · ${fmtN(bw)} palabras</div></div>
+      </button>`;
+    }).join('');
+    return `<section class="card" style="margin-bottom:16px">
+      <div class="spread" style="margin-bottom:14px">
+        <div><span class="saga-name" onclick="renameSaga('${s.id}')">${esc(s.name)}</span>
+          <div class="small muted num">${s.books.length} ${s.books.length===1?'libro':'libros'} · ${fmtN(w)} palabras</div></div>
+        <div class="row">
+          <button class="btn btn-s" onclick="addBook('${s.id}')">＋ Libro</button>
+          <button class="btn btn-s btn-d" onclick="delSaga('${s.id}')">Eliminar</button>
+        </div>
+      </div>
+      ${s.books.length?`<div class="grid">${books}</div>`:'<p class="muted small">Aún no hay libros. Crea el primero con «＋ Libro».</p>'}
+    </section>`;
+  }).join('');
+  view().innerHTML=`<div class="wrap">
+    <div class="lib-hero">${logoSVG()}<h1>AKHARTA</h1><div class="sub">taller de novela</div></div>
+    <div class="row" style="justify-content:center;margin-bottom:22px"><button class="btn btn-p" onclick="addSaga()">＋ Saga</button></div>
+    ${sagas||'<p class="muted" style="text-align:center">Crea tu primera saga para empezar a escribir.</p>'}
+  </div>`;
+}
+async function addSaga(){const n=await askText('Nueva saga','Akharta');if(n){state.sagas.push(newSaga(n));scheduleSave();render()}}
+async function renameSaga(id){const s=sagaById(id);const n=await askText('Renombrar saga',s.name);if(n){s.name=n;scheduleSave();render()}}
+async function delSaga(id){
+  const s=sagaById(id);
+  if(!await askConfirm2(`Eliminar la saga «${s.name}» con todos sus libros, personajes y mundo. Las sagas NO van a la papelera.`))return;
+  state.sagas=state.sagas.filter(x=>x.id!==id);
+  if(state.meta.currentSaga===id){state.meta.currentSaga=null;state.meta.currentBook=null}
+  scheduleSave();toast('Saga eliminada');render();
+}
+async function addBook(sagaId){
+  const s=sagaById(sagaId);
+  const n=await askText('Nuevo libro',`Libro ${['I','II','III','IV','V','VI','VII','VIII','IX','X'][s.books.length]||s.books.length+1}`);
+  if(n){s.books.push(newBook(n));scheduleSave();render()}
+}
+function openBook(sagaId,bookId){
+  state.meta.currentSaga=sagaId;state.meta.currentBook=bookId;
+  const b=curBook();ensureSession(b);scheduleSave();
+  go({v:'book',tab:'resumen'});
+}
+
+/* ═══════════ Libro: pestañas ═══════════ */
+function renderBook(r){
+  const s=curSaga(),b=curBook();
+  if(!s||!b){route=[{v:'lib'}];render();return}
+  ensureSession(b);
+  ({resumen:renderResumen,caps:renderCaps,mundo:renderMundo,actos:renderActos,logros:renderLogros}[r.tab]||renderResumen)(r,s,b);
+}
+
+/* ── Resumen ── */
+function renderResumen(r,s,b){
+  const w=bookWords(b),delta=sessDelta(b);
+  const scenes=b.chapters.reduce((n,c)=>n+c.scenes.length,0);
+  const mins=b.chapters.reduce((n,c)=>n+readMins(chapWords(c)),0);
+  const hitos=s.timelines.reduce((n,t)=>n+t.hitos.length,0);
+  const terms=s.languages.reduce((n,l)=>n+l.words.length,0);
+  const stats=[[b.chapters.length,'Capítulos'],[scenes,'Escenas'],[fmtN(w),'Palabras'],[fmtMins(mins),'Lectura'],
+    [s.characters.length,'Personajes'],[s.places.length,'Ubicaciones'],[s.groups.length,'Grupos'],
+    [hitos,'Hitos'],[s.easterEggs.length,'Easter eggs'],[terms,'Términos']];
+  const prog=b.goalWords>0?Math.min(100,Math.round(w/b.goalWords*100)):0;
+  view().innerHTML=`<div class="wrap watermark">${logoSVG('wm')}
+    <div class="hero">
+      <div class="cov">${b.cover?`<img src="${b.cover}" alt="">`:esc((b.name||'L')[0])}</div>
+      <div style="flex:1;min-width:0">
+        <div class="small muted">${esc(s.name)}</div>
+        <h2>${esc(b.name)}</h2>
+        <div class="small muted">Última edición: ${fmtDate(b.updated)}</div>
+        <div class="small num" style="margin:6px 0 10px;color:${delta>0?'var(--ok)':'var(--muted)'}">${delta>=0?'+':''}${fmtN(delta)} palabras esta sesión</div>
+        <select style="width:auto" onchange="setBookEstado(this.value)">
+          ${Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}" ${b.estado===k?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="sect stack">
+      <div class="field"><label class="lbl" for="fIdea">Idea (una frase)</label>
+        <input id="fIdea" value="${esc(b.idea)}" placeholder="La chispa del libro…" oninput="updBook('idea',this.value)"></div>
+      <div class="field"><label class="lbl" for="fSin">Sinopsis</label>
+        <textarea id="fSin" placeholder="De qué va la historia…" oninput="updBook('sinopsis',this.value)">${esc(b.sinopsis)}</textarea></div>
+    </div>
+    <div class="sect"><h2>Estadísticas</h2>
+      <div class="statgrid">${stats.map(([n,l])=>`<div class="stat"><b class="num">${n}</b><span>${l}</span></div>`).join('')}</div>
+    </div>
+    ${b.goalWords>0?`<div class="sect"><h2>Progreso</h2><div class="card">
+      <div class="spread small num" style="margin-bottom:8px"><span>${fmtN(w)} / ${fmtN(b.goalWords)} palabras</span><b>${prog}%</b></div>
+      <div class="bar"><i style="width:${prog}%"></i></div>
+      <div class="small muted num" style="margin-top:8px">${w>=b.goalWords?'¡Objetivo alcanzado!':`Faltan ${fmtN(b.goalWords-w)} palabras`}</div>
+    </div></div>`:''}
+    <div class="sect"><h2>Exportar este libro</h2><div class="card row">
+      <button class="btn" onclick="expDoc(curBook())">Word (.doc)</button>
+      <button class="btn" onclick="expPdf(curBook())">PDF (imprimir)</button>
+      <button class="btn" onclick="expTxt(curBook(),$('#ckNB').checked)">Texto (.txt)</button>
+      <label class="small muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ckNB">sin líneas en blanco</label>
+    </div></div>
+    <div class="sect"><h2>Ajustes del libro</h2><div class="card row">
+      <button class="btn" onclick="pickCover()">${b.cover?'Cambiar portada':'Añadir portada'}</button>
+      ${b.cover?'<button class="btn" onclick="rmCover()">Quitar portada</button>':''}
+      <button class="btn" onclick="renameCurBook()">Renombrar</button>
+      <button class="btn btn-d" onclick="delCurBook()">Eliminar libro</button>
+    </div></div>
+  </div>`;
+}
+function updBook(k,v){const b=curBook();b[k]=v;b.updated=Date.now();scheduleSave()}
+function setBookEstado(v){updBook('estado',v)}
+function pickCover(){pickImage(url=>{updBook('cover',url);render()})}
+function rmCover(){updBook('cover',null);render()}
+async function delCurBook(){
+  const s=curSaga(),b=curBook();
+  if(!await askConfirm2(`Eliminar el libro «${b.name}» con sus ${b.chapters.length} capítulos. Los libros NO van a la papelera.`))return;
+  s.books=s.books.filter(x=>x.id!==b.id);state.meta.currentBook=null;
+  scheduleSave();toast('Libro eliminado');route=[{v:'lib'}];render();
+}
+
+/* ── Capítulos ── */
+function renderCaps(r,s,b){
+  view().innerHTML=`<div class="wrap">
+    <div class="searchrow">
+      <input type="search" id="capQ" placeholder="Buscar por título o texto…" value="${esc(r.q||'')}" oninput="capSearch(this.value)">
+      <button class="iconb ${r.reorder?'on':''}" title="Reordenar" onclick="toggleReorder()">⇅</button>
+      <button class="btn btn-p" onclick="addChapter()">＋ Capítulo</button>
+    </div>
+    <div id="capList"></div>
+  </div>`;
+  fillCaps();
+}
+function capSearch(q){rTop().q=q;fillCaps()}
+function toggleReorder(){const r=rTop();r.reorder=!r.reorder;render()}
+function fillCaps(){
+  const r=rTop(),s=curSaga(),b=curBook(),q=(r.q||'').toLowerCase();
+  let list=b.chapters.map((c,i)=>({c,i}));
+  if(q)list=list.filter(({c})=>c.title.toLowerCase().includes(q)||plain(c.body).toLowerCase().includes(q));
+  const el=$('#capList');
+  if(!b.chapters.length){el.innerHTML='<p class="muted" style="text-align:center;padding:40px 0">Aún no hay capítulos. La historia empieza con «＋ Capítulo».</p>';return}
+  if(r.reorder){
+    el.innerHTML=list.map(({c,i})=>`<div class="reorder-row" style="margin-bottom:8px">
+      <span class="muted small num">${i+1}</span><b>${esc(c.title)}</b>
+      <button class="iconb" ${i===0?'disabled':''} onclick="mvChap(${i},-1)">↑</button>
+      <button class="iconb" ${i===b.chapters.length-1?'disabled':''} onclick="mvChap(${i},1)">↓</button>
+    </div>`).join('');
+    return;
+  }
+  el.innerHTML=`<div class="grid-w">`+list.map(({c,i})=>{
+    const w=chapWords(c),tags=c.tagIds.map(id=>s.tags.find(t=>t.id===id)).filter(Boolean);
+    return `<button class="chapcard" onclick="openChap('${c.id}')">
+      ${c.image?`<div class="img"><img src="${c.image}" alt=""></div>`:''}
+      <div class="ci">
+        <div class="meta"><span class="sdot" style="background:${STATUS[c.status][1]}"></span>
+          <span class="num">Nº ${i+1} · ${fmtN(w)} pal. · ${readMins(w)} min${c.scenes.length?` · ${c.scenes.length} esc.`:''}</span></div>
+        <b>${esc(c.title)}</b>
+        <div class="ext">${esc(plain(c.body).trim().slice(0,150))||'<i>Sin texto todavía</i>'}</div>
+        ${tags.length?`<div class="chips">${tags.map(t=>`<span class="chip"><span class="cdot" style="background:${t.color}"></span>${esc(t.name)}</span>`).join('')}</div>`:''}
+      </div></button>`;
+  }).join('')+`</div>`;
+}
+function mvChap(i,dir){
+  const b=curBook(),j=i+dir;
+  if(j<0||j>=b.chapters.length)return;
+  [b.chapters[i],b.chapters[j]]=[b.chapters[j],b.chapters[i]];
+  scheduleSave();fillCaps();
+}
+function addChapter(){
+  const b=curBook(),c=newChapter();
+  b.chapters.push(c);b.updated=Date.now();scheduleSave();
+  openChap(c.id);
+}
+function openChap(id){go({v:'chap',id})}
+function openChapAny(id){ /* desde cronología: puede estar en otro libro */
+  const s=curSaga(),f=findChap(s,id);
+  if(!f){toast('Ese capítulo ya no existe');return}
+  state.meta.currentBook=f.book.id;ensureSession(f.book);scheduleSave();
+  go({v:'chap',id});
+}
+
+/* ── Mundo ── */
+const MUNDO=[['characters','Personajes'],['places','Ubicaciones'],['groups','Grupos'],['timelines','Cronologías'],['languages','Idiomas'],['easterEggs','Easter eggs'],['tags','Etiquetas']];
+const openPlaces=new Set();
+function renderMundo(r,s,b){
+  r.sub=r.sub||'characters';
+  view().innerHTML=`<div class="wrap">
+    <div class="subchips">${MUNDO.map(([id,lb])=>`<button class="sc ${r.sub===id?'on':''}" onclick="setSub('${id}')">${lb}</button>`).join('')}</div>
+    <div id="mundoBody"></div>
+  </div>`;
+  fillMundo();
+}
+function setSub(sub){const r=rTop();r.sub=sub;r.q='';render()}
+function fillMundo(){
+  const r=rTop(),s=curSaga(),el=$('#mundoBody'),q=(r.q||'').toLowerCase();
+  const cc=state.meta.catColors;
+  const search=(ph)=>`<div class="searchrow"><input type="search" placeholder="${ph}" value="${esc(r.q||'')}" oninput="mundoSearch(this.value)"></div>`;
+  if(r.sub==='characters'){
+    const list=s.characters.filter(c=>!q||c.name.toLowerCase().includes(q)||c.body.toLowerCase().includes(q));
+    el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Personajes <span class="muted small num">${s.characters.length}</span></h2>
+      <button class="btn btn-p btn-s" onclick="addChar()">＋ Personaje</button></div>${search('Buscar personaje…')}
+      <div class="grid-w">${list.map(c=>{
+        const nCh=s.books.reduce((n,bk)=>n+bk.chapters.filter(ch=>ch.links.some(l=>l.type==='characters'&&l.id===c.id)).length,0);
+        const nG=s.groups.filter(g=>g.members.includes(c.id)).length;
+        const f2=state.meta.charFields.slice(0,2).map(f=>c.fields[f.id]).filter(Boolean).join(' · ');
+        return `<button class="entcard" style="border-left-color:${cc.characters}" onclick="openEnt('character','${c.id}')">
+          ${c.image?`<img src="${c.image}" alt="">`:''}
+          <b>${esc(c.name)}</b>${f2?`<div class="small muted">${esc(f2)}</div>`:''}
+          <div class="desc">${esc(c.body.slice(0,110))}</div>
+          <div class="small muted num" style="margin-top:6px">${nCh} cap. · ${c.rels.length} rel. · ${nG} grupos</div>
+        </button>`}).join('')||'<p class="muted">Sin personajes todavía.</p>'}</div>`;
+  }
+  else if(r.sub==='places'){
+    const header=`<div class="spread" style="margin-bottom:12px"><h2>Ubicaciones <span class="muted small num">${s.places.length}</span></h2>
+      <button class="btn btn-p btn-s" onclick="addPlace(null)">＋ Ubicación</button></div>${search('Buscar ubicación…')}`;
+    if(q){
+      const list=s.places.filter(p=>p.name.toLowerCase().includes(q)||p.body.toLowerCase().includes(q));
+      el.innerHTML=header+`<div class="stack" style="gap:6px">${list.map(p=>`<button class="entcard" style="border-left-color:${cc.places}" onclick="openEnt('place','${p.id}')"><b>${esc(p.name)}</b><div class="desc">${esc(p.body.slice(0,110))}</div></button>`).join('')||'<p class="muted">Sin resultados.</p>'}</div>`;
+    }else{
+      const tree=pid=>{
+        const kids=s.places.filter(p=>(p.parentId||null)===pid);
+        if(!kids.length)return '';
+        return `<ul class="tree">${kids.map(p=>{
+          const has=s.places.some(x=>x.parentId===p.id),open=openPlaces.has(p.id);
+          return `<li><div class="tnode">
+            ${has?`<button class="caret ${open?'open':''}" onclick="togglePlace('${p.id}')">▶</button>`:'<span class="caret">·</span>'}
+            <button class="tn" onclick="openEnt('place','${p.id}')">${esc(p.name)}</button>
+            <button class="iconb" style="width:28px;height:28px" title="Crear sub-lugar" onclick="addPlace('${p.id}')">＋</button>
+          </div>${open?tree(p.id):''}</li>`}).join('')}</ul>`;
+      };
+      el.innerHTML=header+(tree(null)||'<p class="muted">Sin ubicaciones todavía.</p>');
+    }
+  }
+  else if(r.sub==='groups'){
+    el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Grupos <span class="muted small num">${s.groups.length}</span></h2>
+      <button class="btn btn-p btn-s" onclick="addGroup()">＋ Grupo</button></div>
+      <div class="grid-w">${s.groups.map(g=>{
+        const nCh=g.chapterIds.filter(id=>findChap(s,id)).length;
+        return `<button class="entcard" style="border-left-color:${cc.groups}" onclick="openEnt('group','${g.id}')">
+        <b>${esc(g.name)}</b><div class="desc">${esc(g.body.slice(0,110))}</div>
+        <div class="small muted num" style="margin-top:6px">${g.members.length} miembros · ${nCh} cap.</div></button>`}).join('')||'<p class="muted">Sin grupos todavía.</p>'}</div>`;
+  }
+  else if(r.sub==='timelines'){
+    el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Cronologías</h2>
+      <button class="btn btn-p btn-s" onclick="addTl()">＋ Cronología</button></div>
+      <div class="grid-w">${s.timelines.map(t=>`<div class="entcard" style="cursor:default">
+        <b style="cursor:pointer" onclick="go({v:'tl',id:'${t.id}'})">${esc(t.name)}</b>
+        <div class="small muted num">${t.hitos.length} hitos</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn btn-s" onclick="go({v:'tl',id:'${t.id}'})">Abrir</button>
+          <button class="btn btn-s" onclick="renameTl('${t.id}')">Renombrar</button>
+          ${s.timelines.length>1?`<button class="btn btn-s btn-d" onclick="delTl('${t.id}')">Eliminar</button>`:''}
+        </div></div>`).join('')}</div>`;
+  }
+  else if(r.sub==='languages'){
+    el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Idiomas</h2>
+      <button class="btn btn-p btn-s" onclick="addLang()">＋ Idioma</button></div>
+      <div class="grid-w">${s.languages.map(l=>`<button class="entcard" onclick="go({v:'lang',id:'${l.id}'})">
+        <b>${esc(l.name)}</b><div class="small muted num">${l.words.length} términos</div></button>`).join('')||'<p class="muted">Sin idiomas todavía.</p>'}</div>`;
+  }
+  else if(r.sub==='easterEggs'){
+    const list=s.easterEggs.filter(e=>!q||e.title.toLowerCase().includes(q)||e.body.toLowerCase().includes(q));
+    el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Easter eggs <span class="muted small num">${s.easterEggs.length}</span></h2>
+      <button class="btn btn-p btn-s" onclick="addEgg()">＋ Secreto</button></div>${search('Buscar secreto…')}
+      <div class="grid-w">${list.map(e=>`<button class="entcard" style="border-left-color:${cc.easterEggs}" onclick="openEnt('egg','${e.id}')">
+        <b>${esc(e.title)}</b><div class="desc">${esc(e.body.slice(0,110))}</div>
+        <div class="small muted num" style="margin-top:6px">${e.chapterIds.filter(id=>findChap(s,id)).length} cap.</div></button>`).join('')||'<p class="muted">Sin secretos todavía.</p>'}</div>`;
+  }
+  else if(r.sub==='tags'){
+    el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Etiquetas</h2>
+      <button class="btn btn-p btn-s" onclick="addTag()">＋ Etiqueta</button></div>
+      <div class="card">${s.tags.map(t=>`<div class="trow">
+        <input type="color" value="${t.color}" oninput="setTagColor('${t.id}',this.value)">
+        <div class="tinfo"><b style="cursor:pointer" onclick="renameTag('${t.id}')">${esc(t.name)}</b></div>
+        <button class="btn btn-s btn-d" onclick="delTag('${t.id}')">Eliminar</button>
+      </div>`).join('')||'<p class="muted small">Sin etiquetas todavía.</p>'}</div>`;
+  }
+}
+function togglePlace(id){openPlaces.has(id)?openPlaces.delete(id):openPlaces.add(id);fillMundo()}
+function refocusSearch(scope){const i=$(scope+' input[type=search]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}}
+function mundoSearch(q){rTop().q=q;fillMundo();refocusSearch('#mundoBody')}
+function langSearch(q){rTop().q=q;render();refocusSearch('#view')}
+function addChar(){const s=curSaga(),c={id:uid(),name:'Sin nombre',role:'',body:'',image:null,rels:[],fields:{}};s.characters.push(c);scheduleSave();openEnt('character',c.id)}
+function addPlace(parentId){const s=curSaga(),p={id:uid(),name:'Nueva ubicación',body:'',parentId};s.places.push(p);if(parentId)openPlaces.add(parentId);scheduleSave();openEnt('place',p.id)}
+function addGroup(){const s=curSaga(),g={id:uid(),name:'Nuevo grupo',body:'',members:[],chapterIds:[]};s.groups.push(g);scheduleSave();openEnt('group',g.id)}
+function addEgg(){const s=curSaga(),e={id:uid(),title:'Nuevo secreto',body:'',chapterIds:[]};s.easterEggs.push(e);scheduleSave();openEnt('egg',e.id)}
+async function addTag(){
+  const s=curSaga(),n=await askText('Nueva etiqueta');
+  if(n){s.tags.push({id:uid(),name:n,color:TAGPAL[s.tags.length%TAGPAL.length]});scheduleSave();fillMundo()}
+}
+function setTagColor(id,c){const t=curSaga().tags.find(t=>t.id===id);t.color=c;scheduleSave()}
+async function renameTag(id){const t=curSaga().tags.find(t=>t.id===id);const n=await askText('Renombrar etiqueta',t.name);if(n){t.name=n;scheduleSave();fillMundo()}}
+async function delTag(id){
+  const s=curSaga(),t=s.tags.find(t=>t.id===id);
+  if(!await askConfirm(`Eliminar la etiqueta «${t.name}». Se quitará de todos los capítulos.`))return;
+  for(const b of s.books)for(const c of b.chapters)c.tagIds=c.tagIds.filter(x=>x!==id);
+  toTrash('tag',t.name,{sagaId:s.id},t);
+  s.tags=s.tags.filter(x=>x.id!==id);
+  scheduleSave();toast('Etiqueta eliminada (papelera)');fillMundo();
+}
+async function addTl(){const s=curSaga(),n=await askText('Nueva cronología');if(n){s.timelines.push({id:uid(),name:n,hitos:[]});scheduleSave();fillMundo()}}
+async function renameTl(id){const t=curSaga().timelines.find(t=>t.id===id);const n=await askText('Renombrar cronología',t.name);if(n){t.name=n;scheduleSave();render()}}
+async function delTl(id){
+  const s=curSaga();
+  if(s.timelines.length<2){toast('No se puede eliminar la única cronología');return}
+  const t=s.timelines.find(t=>t.id===id);
+  if(!await askConfirm(`Eliminar la cronología «${t.name}» con sus ${t.hitos.length} hitos.`))return;
+  toTrash('timeline',t.name,{sagaId:s.id},t);
+  s.timelines=s.timelines.filter(x=>x.id!==id);
+  scheduleSave();toast('Cronología eliminada (papelera)');render();
+}
+async function addLang(){const s=curSaga(),n=await askText('Nuevo idioma','Akhartano');if(n){s.languages.push({id:uid(),name:n,words:[]});scheduleSave();fillMundo()}}
+
+/* ── Cronología: detalle ── */
+function renderTl(r){
+  const s=curSaga(),tl=s.timelines.find(t=>t.id===r.id);
+  if(!tl){goBack();return}
+  const hitos=[...tl.hitos].sort((a,b)=>a.order-b.order);
+  view().innerHTML=`<div class="wrap-n">
+    <div class="spread" style="margin-bottom:16px"><h2>${esc(tl.name)}</h2>
+      <button class="btn btn-p btn-s" onclick="addHito('${tl.id}')">＋ Hito</button></div>
+    <div class="tl-axis">${hitos.map(h=>{
+      const chips=h.chapterIds.map(id=>{const f=findChap(s,id);return f?`<span class="chip click" onclick="event.stopPropagation();openChapAny('${id}')">${esc(f.ch.title)}</span>`:''}).join('');
+      return `<div class="hito" onclick="openEnt('hito','${h.id}','${tl.id}')">
+        <span class="node" style="background:${h.kind==='evento'?'#3F5AA6':'#C9A227'}"></span>
+        <div class="anchor">${esc(h.anchor)||(h.kind==='evento'?'Evento':'Momento')}</div>
+        <b>${esc(h.title)}</b>
+        ${h.body?`<div class="small muted">${esc(h.body.slice(0,160))}</div>`:''}
+        ${chips?`<div class="chips" style="margin-top:8px">${chips}</div>`:''}
+      </div>`}).join('')||'<p class="muted">Sin hitos. Añade el primero para trazar el eje temporal.</p>'}</div>
+  </div>`;
+}
+function addHito(tlId){
+  const tl=curSaga().timelines.find(t=>t.id===tlId);
+  const maxO=tl.hitos.reduce((m,h)=>Math.max(m,h.order),0);
+  const h={id:uid(),kind:'evento',title:'Nuevo hito',anchor:'',order:maxO+10,body:'',chapterIds:[]};
+  tl.hitos.push(h);scheduleSave();openEnt('hito',h.id,tlId);
+}
+
+/* ── Idioma: detalle ── */
+function renderLang(r){
+  const s=curSaga(),l=s.languages.find(x=>x.id===r.id);
+  if(!l){goBack();return}
+  const q=(r.q||'').toLowerCase();
+  const words=[...l.words].sort((a,b)=>a.term.localeCompare(b.term,'es')).filter(w=>!q||w.term.toLowerCase().includes(q)||w.meaning.toLowerCase().includes(q));
+  view().innerHTML=`<div class="wrap-n">
+    <div class="spread" style="margin-bottom:12px"><h2>${esc(l.name)} <span class="muted small num">${l.words.length} términos</span></h2>
+      <div class="row"><button class="btn btn-s" onclick="renameLang('${l.id}')">Renombrar</button>
+      <button class="btn btn-s btn-d" onclick="delLang('${l.id}')">Eliminar</button>
+      <button class="btn btn-p btn-s" onclick="addWord('${l.id}')">＋ Palabra</button></div></div>
+    <div class="searchrow"><input type="search" placeholder="Buscar término…" value="${esc(r.q||'')}" oninput="langSearch(this.value)"></div>
+    <div class="card" style="padding:6px 14px">${words.map(w=>`<div class="trow" style="cursor:pointer" onclick="openEnt('word','${w.id}','${l.id}')">
+      <div class="tinfo"><b style="font-family:var(--serif);font-style:italic">${esc(w.term)||'—'}</b>
+      <span>${esc(w.meaning)}${w.type?` · ${esc(w.type)}`:''}</span></div>
+    </div>`).join('')||'<p class="muted small" style="padding:10px 0">Sin términos todavía.</p>'}</div>
+  </div>`;
+}
+async function renameLang(id){const l=curSaga().languages.find(x=>x.id===id);const n=await askText('Renombrar idioma',l.name);if(n){l.name=n;scheduleSave();render()}}
+async function delLang(id){
+  const s=curSaga(),l=s.languages.find(x=>x.id===id);
+  if(!await askConfirm(`Eliminar el idioma «${l.name}» con sus ${l.words.length} términos.`))return;
+  toTrash('language',l.name,{sagaId:s.id},l);
+  s.languages=s.languages.filter(x=>x.id!==id);
+  scheduleSave();toast('Idioma eliminado (papelera)');goBack();
+}
+function addWord(langId){
+  const l=curSaga().languages.find(x=>x.id===langId);
+  const w={id:uid(),term:'',meaning:'',type:'',notes:''};
+  l.words.push(w);scheduleSave();openEnt('word',w.id,langId);
+}
+
+/* ── Actos ── */
+function renderActos(r,s,b){
+  const acts=[...b.acts].sort((x,y)=>x.order-y.order);
+  const actSel=(c)=>`<select style="width:auto;font-size:12.5px;padding:5px 7px" onchange="setChapAct('${c.id}',this.value)">
+    <option value="">Sin acto</option>
+    ${acts.map(a=>`<option value="${a.id}" ${c.actId===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select>`;
+  const chapRow=c=>`<div class="trow"><div class="tinfo">
+      <b style="cursor:pointer;font-family:var(--serif)" onclick="openChap('${c.id}')">${esc(c.title)}</b>
+      <span class="num">${fmtN(chapWords(c))} palabras</span></div>${actSel(c)}</div>`;
+  const blocks=acts.map(a=>{
+    const chs=b.chapters.filter(c=>c.actId===a.id);
+    const w=chs.reduce((n,c)=>n+chapWords(c),0);
+    return `<div class="card" style="margin-bottom:14px">
+      <div class="spread" style="margin-bottom:6px">
+        <h3 style="cursor:pointer" onclick="openEnt('act','${a.id}')">${esc(a.name)}</h3>
+        <span class="small muted num">${chs.length} cap. · ${fmtN(w)} palabras</span></div>
+      ${chs.map(chapRow).join('')||'<p class="muted small">Sin capítulos en este acto.</p>'}
+    </div>`;
+  }).join('');
+  const libres=b.chapters.filter(c=>!c.actId||!b.acts.some(a=>a.id===c.actId));
+  view().innerHTML=`<div class="wrap-n">
+    <div class="spread" style="margin-bottom:16px"><h2>Actos</h2>
+      <button class="btn btn-p btn-s" onclick="addAct()">＋ Acto</button></div>
+    ${blocks}
+    <div class="card"><h3 class="muted" style="margin-bottom:6px">Sin asignar</h3>
+      ${libres.map(chapRow).join('')||'<p class="muted small">Todos los capítulos están asignados.</p>'}</div>
+  </div>`;
+}
+async function addAct(){
+  const b=curBook(),n=await askText('Nuevo acto',`Acto ${['I','II','III','IV','V'][b.acts.length]||b.acts.length+1}`);
+  if(!n)return;
+  const maxO=b.acts.reduce((m,a)=>Math.max(m,a.order),0);
+  b.acts.push({id:uid(),name:n,order:maxO+10});scheduleSave();render();
+}
+function setChapAct(chId,actId){
+  const b=curBook(),c=b.chapters.find(c=>c.id===chId);
+  c.actId=actId||null;c.updated=Date.now();scheduleSave();render();
+}
+
+/* ── Logros ── */
+function renderLogros(r,s,b){
+  const w=bookWords(b);
+  const hitos=s.timelines.reduce((n,t)=>n+t.hitos.length,0);
+  const terms=s.languages.reduce((n,l)=>n+l.words.length,0);
+  const badges=[
+    ['✒','Primer capítulo','Escribe tu primer capítulo',b.chapters.length>=1],
+    ['✦','10.000 palabras','Alcanza las 10.000 palabras',w>=10000],
+    ['✧','50.000 palabras','Alcanza las 50.000 palabras',w>=50000],
+    ['❖','90.000 palabras','Alcanza las 90.000 palabras',w>=90000],
+    ['♟','Elenco','Crea 10 personajes',s.characters.length>=10],
+    ['✵','Cartógrafo','Traza 8 ubicaciones',s.places.length>=8],
+    ['▦','Estructura','Organiza 3 actos',b.acts.length>=3],
+    ['⧖','Cronista','Registra 5 hitos',hitos>=5],
+    ['♜','Mundo vivo','Funda 3 grupos',s.groups.length>=3],
+    ['✎','Lexicógrafo','Acuña 20 términos',terms>=20]];
+  const won=badges.filter(x=>x[3]).length;
+  const prog=b.goalWords>0?Math.min(100,Math.round(w/b.goalWords*100)):0;
+  view().innerHTML=`<div class="wrap-n">
+    <div class="card" style="margin-bottom:14px">
+      <div class="spread"><h3>Objetivo del libro</h3>
+        <button class="btn btn-s" onclick="setGoal()">${b.goalWords?'Cambiar objetivo':'Fijar objetivo'}</button></div>
+      ${b.goalWords?`<div class="spread small num" style="margin:10px 0 8px"><span>${fmtN(w)} / ${fmtN(b.goalWords)} palabras</span><b>${prog}%</b></div>
+        <div class="bar"><i style="width:${prog}%"></i></div>`
+      :'<p class="muted small" style="margin-top:8px">Sin objetivo de palabras. Fija uno para ver tu progreso.</p>'}
+    </div>
+    <div class="statgrid" style="margin-bottom:22px">
+      <div class="stat"><b class="num">${fmtN(sessDelta(b))}</b><span>Palabras esta sesión</span></div>
+      <div class="stat"><b class="num">${fmtN(w)}</b><span>Palabras totales</span></div>
+      <div class="stat"><b class="num">${won}/${badges.length}</b><span>Insignias</span></div>
+    </div>
+    <h2 style="margin-bottom:12px">Insignias</h2>
+    <div class="stack" style="gap:8px">${badges.map(([ic,t,d,ok])=>`<div class="badge ${ok?'won':''}">
+      <span class="bic">${ic}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('')}</div>
+  </div>`;
+}
+async function setGoal(){
+  const b=curBook();
+  const n=await askNum('Objetivo de palabras',b.goalWords||90000,'0 = sin objetivo');
+  if(n!==null){b.goalWords=Math.max(0,n);scheduleSave();render()}
+}
+</script>
+<script>
+'use strict';
+/* ═══════════ Editor de capítulo ═══════════ */
+const edClasses=ch=>`${ch.indent?'ind ':''}sp-${ch.spacing}`;
+let edCountT=null;
+function chNow(){const s=curSaga();if(!s)return null;const f=findChap(s,rTop().id);return f?f.ch:null}
+function renderChap(r){
+  const s=curSaga();if(!s){route=[{v:'lib'}];render();return}
+  const f=findChap(s,r.id);if(!f){route.pop();render();return}
+  const{book,ch}=f;
+  state.meta.currentBook=book.id;ensureSession(book);
+  snapshot(ch,false);
+  view().innerHTML=`<div class="wrap-n">
+    <div class="ed-head">
+      <input class="ch-title" id="chTitle" value="${esc(ch.title)}" aria-label="Título del capítulo">
+      <button class="iconb" title="Modo lectura" onclick="openReader()">Aa</button>
+      <button class="iconb" title="Modo concentración" onclick="openFocus()">⛶</button>
+      <button class="iconb" title="Panel del capítulo" onclick="openDrawer()">☰</button>
+    </div>
+    <div class="ed-tools">
+      <button class="tb bld" data-c="bold" title="Negrita">B</button>
+      <button class="tb itl" data-c="italic" title="Cursiva">I</button>
+      <button class="tb und" data-c="underline" title="Subrayado">U</button>
+      <button class="tb" id="tbH" title="Título de sección">T</button>
+      <button class="tb ${ch.indent?'on':''}" id="tbInd" title="Sangría de primera línea">⇥</button>
+      <select id="tbSp" title="Espaciado">${['compacto','normal','amplio'].map(x=>`<option value="${x}" ${ch.spacing===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
+      <button class="tb" id="tbFind" title="Buscar y reemplazar">⌕</button>
+      <span class="ed-count" id="edCount"></span>
+    </div>
+    <div id="findBar" hidden>
+      <input type="text" id="fbQ" placeholder="Buscar">
+      <input type="text" id="fbR" placeholder="Reemplazar por">
+      <label><input type="checkbox" id="fbCase" checked>ignorar mayúsculas</label>
+      <button class="btn btn-s" onclick="fbCount()">Contar</button>
+      <button class="btn btn-s" onclick="fbReplace()">Reemplazar todo</button>
+      <button class="iconb" style="width:30px;height:30px" title="Cerrar" onclick="$('#findBar').hidden=true">✕</button>
+    </div>
+    <div id="ed" contenteditable="true" class="${edClasses(ch)}" aria-label="Texto del capítulo"></div>
+  </div>`;
+  const ed=$('#ed');ed.innerHTML=ch.body||'<p><br></p>';
+  updCount(ch);
+  $('#chTitle').oninput=e=>{ch.title=e.target.value;ch.updated=Date.now();book.updated=Date.now();scheduleSave()};
+  ed.addEventListener('input',()=>{
+    ch.body=ed.innerHTML;ch.updated=Date.now();book.updated=Date.now();scheduleSave();
+    clearTimeout(edCountT);edCountT=setTimeout(()=>updCount(ch),350);
+  });
+  for(const b of $$('.ed-tools .tb[data-c]')){
+    b.addEventListener('mousedown',e=>e.preventDefault());
+    b.onclick=()=>{ed.focus();document.execCommand(b.dataset.c)};
+  }
+  const tbH=$('#tbH');
+  tbH.addEventListener('mousedown',e=>e.preventDefault());
+  tbH.onclick=()=>{ed.focus();
+    const cur=(document.queryCommandValue('formatBlock')||'').toLowerCase();
+    document.execCommand('formatBlock',false,cur==='h3'?'p':'h3');
+  };
+  $('#tbInd').onclick=()=>{ch.indent=!ch.indent;$('#tbInd').classList.toggle('on',ch.indent);ed.className=edClasses(ch);scheduleSave()};
+  $('#tbSp').onchange=e=>{ch.spacing=e.target.value;ed.className=edClasses(ch);scheduleSave()};
+  $('#tbFind').onclick=()=>{const fb=$('#findBar');fb.hidden=!fb.hidden;if(!fb.hidden)$('#fbQ').focus()};
+}
+function updCount(ch){const el=$('#edCount');if(!el)return;const w=countWords(ch.body);el.textContent=`${fmtN(w)} palabras · ${readMins(w)} min`}
+document.addEventListener('selectionchange',()=>{
+  const ed=$('#ed');if(!ed)return;
+  const ae=document.activeElement;
+  if(ae!==ed&&!ed.contains(ae))return;
+  for(const b of $$('.ed-tools .tb[data-c]')){
+    try{b.classList.toggle('on',document.queryCommandState(b.dataset.c))}catch(e){}
+  }
+  const h=$('#tbH');
+  if(h){try{h.classList.toggle('on',(document.queryCommandValue('formatBlock')||'').toLowerCase()==='h3')}catch(e){}}
+});
+/* Buscar y reemplazar sobre nodos de texto */
+function textNodes(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const a=[];let n;while(n=w.nextNode())a.push(n);return a}
+function fbRegex(){
+  const q=$('#fbQ').value;if(!q)return null;
+  const e=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp(e,'g'+($('#fbCase').checked?'i':''));
+}
+function fbCount(){
+  const re=fbRegex();if(!re){toast('Escribe algo que buscar');return}
+  let n=0;for(const t of textNodes($('#ed')))n+=(t.nodeValue.match(re)||[]).length;
+  toast(n===1?'1 coincidencia':`${n} coincidencias`);
+}
+function fbReplace(){
+  const re=fbRegex();if(!re){toast('Escribe algo que buscar');return}
+  const rep=$('#fbR').value;let n=0;
+  for(const t of textNodes($('#ed'))){
+    const m=t.nodeValue.match(re);
+    if(m){n+=m.length;t.nodeValue=t.nodeValue.replace(re,rep)}
+  }
+  const ch=chNow();
+  if(ch){ch.body=$('#ed').innerHTML;ch.updated=Date.now();scheduleSave();updCount(ch)}
+  toast(n===1?'1 reemplazo':`${n} reemplazos`);
+}
+/* Lector y concentración */
+function openReader(){
+  const ch=chNow();if(!ch)return;
+  const ov=document.createElement('div');
+  ov.className='ovl'+(ch.indent?' ind':'');
+  ov.innerHTML=`<button class="btn ovl-close">✕ Cerrar</button><div class="inner"><h1>${esc(ch.title)}</h1>${ch.body}</div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  openOverlay(close);
+  ov.querySelector('.ovl-close').onclick=()=>closeOverlayUI(close);
+}
+function openFocus(){
+  document.body.classList.add('focusmode');
+  try{if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen()}catch(e){}
+  const x=document.createElement('button');
+  x.className='btn ovl-close';x.style.zIndex='70';x.textContent='✕ Salir';
+  document.body.appendChild(x);
+  const close=()=>{
+    document.body.classList.remove('focusmode');x.remove();
+    try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}
+  };
+  openOverlay(close);
+  x.onclick=()=>closeOverlayUI(close);
+}
+/* Panel lateral */
+let drawerTab='links';
+const expScenes=new Set();
+window._drawerClose=null;
+function openDrawer(){
+  drawerTab='links';
+  const bd=document.createElement('div');bd.id='backdrop';
+  const dr=document.createElement('div');dr.id='drawer';
+  document.body.append(bd,dr);
+  const close=()=>{bd.remove();dr.remove();window._drawerClose=null};
+  window._drawerClose=close;
+  openOverlay(close);
+  bd.onclick=()=>closeOverlayUI(close);
+  renderDrawer();
+}
+function setDrawerTab(t){drawerTab=t;renderDrawer()}
+function renderDrawer(){
+  const dr=$('#drawer');if(!dr)return;
+  const s=curSaga(),f=findChap(s,rTop().id);if(!f)return;
+  const{book,ch}=f;
+  const body=drawerTab==='links'?drawLinks(s,book,ch):drawerTab==='scenes'?drawScenes(ch):drawInfo(ch);
+  dr.innerHTML=`<div class="dtabs">
+    <button class="${drawerTab==='links'?'on':''}" onclick="setDrawerTab('links')">Enlaces</button>
+    <button class="${drawerTab==='scenes'?'on':''}" onclick="setDrawerTab('scenes')">Escenas</button>
+    <button class="${drawerTab==='info'?'on':''}" onclick="setDrawerTab('info')">Info</button>
+  </div><div id="drawerBody">${body}</div>`;
+}
+function drawLinks(s,book,ch){
+  const cc=state.meta.catColors;
+  const chip=(type,id,name,color)=>`<span class="chip click" onclick="openEntFromDrawer('${type==='characters'?'character':type==='places'?'place':'group'}','${id}')">
+    <span class="cdot" style="background:${color}"></span>${esc(name)}
+    <span class="x" onclick="event.stopPropagation();drawerRm('${type}','${id}')">✕</span></span>`;
+  const linked=[];
+  for(const l of ch.links){
+    if(l.type==='characters'){const c=charById(s,l.id);if(c)linked.push(chip('characters',c.id,c.name,cc.characters))}
+    else if(l.type==='places'){const p=placeById(s,l.id);if(p)linked.push(chip('places',p.id,p.name,cc.places))}
+  }
+  for(const g of s.groups)if(g.chapterIds.includes(ch.id))linked.push(chip('groups',g.id,g.name,cc.groups));
+  const opt=(type,arr,label,taken)=>{
+    const free=arr.filter(x=>!taken(x));
+    return free.length?`<optgroup label="${label}">${free.map(x=>`<option value="${type}:${x.id}">${esc(x.name)}</option>`).join('')}</optgroup>`:'';
+  };
+  const addSel=`<select onchange="drawerAdd(this.value);this.value=''">
+    <option value="">＋ Enlazar personaje, lugar o grupo…</option>
+    ${opt('characters',s.characters,'Personajes',c=>ch.links.some(l=>l.type==='characters'&&l.id===c.id))}
+    ${opt('places',s.places,'Lugares',p=>ch.links.some(l=>l.type==='places'&&l.id===p.id))}
+    ${opt('groups',s.groups,'Grupos',g=>g.chapterIds.includes(ch.id))}
+  </select>`;
+  const tags=ch.tagIds.map(id=>s.tags.find(t=>t.id===id)).filter(Boolean)
+    .map(t=>`<span class="chip"><span class="cdot" style="background:${t.color}"></span>${esc(t.name)}<span class="x" onclick="drawerRmTag('${t.id}')">✕</span></span>`).join('');
+  const freeTags=s.tags.filter(t=>!ch.tagIds.includes(t.id));
+  const hitos=allHitosLinking(s,ch.id).map(({h})=>`<span class="chip"><span class="cdot" style="background:${h.kind==='evento'?'#3F5AA6':'#C9A227'}"></span>${esc(h.title)}${h.anchor?` · ${esc(h.anchor)}`:''}</span>`).join('');
+  return `<div class="stack">
+    <div class="field"><span class="lbl">Estado del capítulo</span>
+      <select onchange="chSet('status',this.value)">${Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${ch.status===k?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="field"><span class="lbl">Acto</span>
+      <select onchange="chSetAct(this.value)"><option value="">Sin acto</option>
+      ${[...book.acts].sort((a,b)=>a.order-b.order).map(a=>`<option value="${a.id}" ${ch.actId===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
+    <div class="field"><span class="lbl">Vínculos</span>
+      <div class="chips" style="margin-bottom:8px">${linked.join('')||'<span class="muted small">Sin vínculos.</span>'}</div>${addSel}</div>
+    <div class="field"><span class="lbl">Etiquetas</span>
+      <div class="chips" style="margin-bottom:8px">${tags||'<span class="muted small">Sin etiquetas.</span>'}</div>
+      ${freeTags.length?`<select onchange="drawerAddTag(this.value);this.value=''"><option value="">＋ Añadir etiqueta…</option>${freeTags.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>`:''}</div>
+    <div class="field"><span class="lbl">Hitos que enlazan este capítulo</span>
+      <div class="chips">${hitos||'<span class="muted small">Ninguno. Se enlazan desde cada hito.</span>'}</div></div>
+    <div class="field"><span class="lbl">Imagen del capítulo</span>
+      ${ch.image?`<img src="${ch.image}" alt="" style="max-width:100%;border-radius:10px;margin-bottom:8px">`:''}
+      <div class="row"><button class="btn btn-s" onclick="chImgPick()">${ch.image?'Cambiar':'Añadir'} imagen</button>
+      ${ch.image?'<button class="btn btn-s" onclick="chImgRm()">Quitar</button>':''}</div></div>
+  </div>`;
+}
+function chSet(k,v){const ch=chNow();if(!ch)return;ch[k]=v;ch.updated=Date.now();scheduleSave()}
+function chSetAct(v){chSet('actId',v||null)}
+function drawerAdd(v){
+  if(!v)return;
+  const[type,id]=v.split(':');const ch=chNow(),s=curSaga();
+  if(type==='groups'){const g=s.groups.find(g=>g.id===id);if(g&&!g.chapterIds.includes(ch.id))g.chapterIds.push(ch.id)}
+  else if(!ch.links.some(l=>l.type===type&&l.id===id))ch.links.push({type,id});
+  scheduleSave();renderDrawer();
+}
+function drawerRm(type,id){
+  const ch=chNow(),s=curSaga();
+  if(type==='groups'){const g=s.groups.find(g=>g.id===id);if(g)g.chapterIds=g.chapterIds.filter(x=>x!==ch.id)}
+  else ch.links=ch.links.filter(l=>!(l.type===type&&l.id===id));
+  scheduleSave();renderDrawer();
+}
+function drawerAddTag(id){if(!id)return;const ch=chNow();if(!ch.tagIds.includes(id))ch.tagIds.push(id);scheduleSave();renderDrawer()}
+function drawerRmTag(id){const ch=chNow();ch.tagIds=ch.tagIds.filter(x=>x!==id);scheduleSave();renderDrawer()}
+function chImgPick(){pickImage(u=>{chSet('image',u);renderDrawer()})}
+function chImgRm(){chSet('image',null);renderDrawer()}
+function openEntFromDrawer(kind,id,ctx){if(window._drawerClose)closeOverlayUI(window._drawerClose);openEnt(kind,id,ctx)}
+/* Escenas */
+function drawScenes(ch){
+  return `<div>${ch.scenes.map((sc,i)=>{
+    const open=expScenes.has(sc.id);
+    return `<div class="scene"><div class="sh">
+      <b onclick="toggleScene('${sc.id}')">${esc(sc.title)||'Escena'}</b>
+      <button class="mini" ${i===0?'disabled':''} onclick="mvScene(${i},-1)">↑</button>
+      <button class="mini" ${i===ch.scenes.length-1?'disabled':''} onclick="mvScene(${i},1)">↓</button>
+      <button class="mini" onclick="delScene('${sc.id}')">✕</button></div>
+      ${open?`<div class="stack" style="gap:8px;margin-top:8px">
+        <input value="${esc(sc.title)}" placeholder="Título de la escena" oninput="updScene('${sc.id}','title',this.value)">
+        <textarea placeholder="Notas o texto de apoyo…" oninput="updScene('${sc.id}','note',this.value)">${esc(sc.note)}</textarea>
+      </div>`:''}
+    </div>`}).join('')||'<p class="muted small">Sin escenas. Divide el capítulo en escenas para planificarlo.</p>'}
+  <button class="btn" style="margin-top:10px" onclick="addScene()">＋ Escena</button></div>`;
+}
+function toggleScene(id){expScenes.has(id)?expScenes.delete(id):expScenes.add(id);renderDrawer()}
+function addScene(){const ch=chNow();const sc={id:uid(),title:`Escena ${ch.scenes.length+1}`,note:''};ch.scenes.push(sc);expScenes.add(sc.id);scheduleSave();renderDrawer()}
+function updScene(id,k,v){const sc=chNow().scenes.find(s=>s.id===id);if(sc){sc[k]=v;scheduleSave()}}
+function mvScene(i,d){const a=chNow().scenes,j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];scheduleSave();renderDrawer()}
+function delScene(id){const ch=chNow();ch.scenes=ch.scenes.filter(s=>s.id!==id);scheduleSave();renderDrawer()}
+/* Info y versiones */
+function drawInfo(ch){
+  const w=countWords(ch.body);
+  const vs=[...ch.versions].reverse();
+  return `<p class="small muted num">${fmtN(w)} palabras · ${readMins(w)} min de lectura</p>
+    <h3 style="margin:16px 0 6px">Versiones <span class="muted small">(máx. 8)</span></h3>
+    ${vs.map(v=>`<div class="vrow"><span>${fmtDT(v.ts)}</span><span class="num" style="flex:none">${fmtN(countWords(v.body))} pal.</span>
+      <button class="btn btn-s" onclick="restoreVersion(${v.ts})">Restaurar</button></div>`).join('')||'<p class="muted small">Sin versiones guardadas.</p>'}
+    <button class="btn" style="margin-top:10px" onclick="saveVersionNow()">Guardar versión ahora</button>
+    <div style="margin-top:28px;border-top:1px solid var(--line);padding-top:16px">
+      <button class="btn btn-d" onclick="delChapter()">Eliminar capítulo</button></div>`;
+}
+function restoreVersion(ts){
+  const ch=chNow();const v=ch.versions.find(v=>v.ts===ts);if(!v)return;
+  snapshot(ch,true);
+  ch.body=v.body;ch.updated=Date.now();scheduleSave();
+  const ed=$('#ed');if(ed)ed.innerHTML=ch.body||'<p><br></p>';
+  updCount(ch);renderDrawer();toast('Versión restaurada');
+}
+function saveVersionNow(){snapshot(chNow(),true);renderDrawer();toast('Versión guardada')}
+async function delChapter(){
+  const s=curSaga(),f=findChap(s,rTop().id);if(!f)return;
+  if(!await askConfirm(`Eliminar el capítulo «${f.ch.title}». Podrás restaurarlo desde la papelera durante 30 días.`))return;
+  toTrash('chapter',f.ch.title,{sagaId:s.id,bookId:f.book.id},f.ch);
+  f.book.chapters=f.book.chapters.filter(c=>c.id!==f.ch.id);
+  scheduleSave();toast('Capítulo eliminado (papelera)');
+  if(window._drawerClose)closeOverlayUI(window._drawerClose);
+  goBack();
+}
+
+/* ═══════════ Checklists de capítulos ═══════════ */
+function toggleChapLink(chId,type,entId,on){
+  const s=curSaga(),f=findChap(s,chId);if(!f)return;
+  const L=f.ch.links;
+  if(on){if(!L.some(l=>l.type===type&&l.id===entId))L.push({type,id:entId})}
+  else f.ch.links=L.filter(l=>!(l.type===type&&l.id===entId));
+  scheduleSave();
+}
+function bookChecklist(type,entId){
+  const b=curBook();
+  if(!b)return '<p class="muted small">Abre un libro para enlazar capítulos.</p>';
+  if(!b.chapters.length)return '<p class="muted small">Este libro aún no tiene capítulos.</p>';
+  return `<div class="check-list">${b.chapters.map(c=>`<label>
+    <input type="checkbox" ${c.links.some(l=>l.type===type&&l.id===entId)?'checked':''} onchange="toggleChapLink('${c.id}','${type}','${entId}',this.checked)"><span>${esc(c.title)}</span></label>`).join('')}</div>`;
+}
+function entOfKind(kind,id,ctx){
+  const s=curSaga();
+  if(kind==='group')return s.groups.find(g=>g.id===id);
+  if(kind==='egg')return s.easterEggs.find(e=>e.id===id);
+  if(kind==='hito'){const tl=s.timelines.find(t=>t.id===ctx);return tl&&tl.hitos.find(h=>h.id===id)}
+  return null;
+}
+function toggleEntChap(kind,entId,ctx,chId,on){
+  const e=entOfKind(kind,entId,ctx);if(!e)return;
+  if(on){if(!e.chapterIds.includes(chId))e.chapterIds.push(chId)}
+  else e.chapterIds=e.chapterIds.filter(x=>x!==chId);
+  scheduleSave();
+}
+function sagaChecklist(kind,entId,ctx){
+  const s=curSaga(),e=entOfKind(kind,entId,ctx);
+  if(!s.books.some(b=>b.chapters.length))return '<p class="muted small">La saga aún no tiene capítulos.</p>';
+  return `<div class="check-list">${s.books.map(b=>
+    (s.books.length>1?`<div class="grp">${esc(b.name)}</div>`:'')+
+    b.chapters.map(c=>`<label><input type="checkbox" ${e.chapterIds.includes(c.id)?'checked':''} onchange="toggleEntChap('${kind}','${entId}','${ctx||''}','${c.id}',this.checked)"><span>${esc(c.title)}</span></label>`).join('')
+  ).join('')}</div>`;
+}
+
+/* ═══════════ Editores de entidades ═══════════ */
+function openEnt(kind,id,ctx){go({v:'ent',kind,id,ctx:ctx||null})}
+function renderEnt(r){
+  const s=curSaga();if(!s){route=[{v:'lib'}];render();return}
+  const F={character:entChar,place:entPlace,group:entGroup,hito:entHito,egg:entEgg,word:entWord,act:entAct}[r.kind];
+  if(!F){goBack();return}
+  const html=F(s,r);
+  if(html===null){route.pop();render();return}
+  view().innerHTML=`<div class="wrap-n stack">${html}</div>`;
+}
+/* — Personaje — */
+function entChar(s,r){
+  const c=charById(s,r.id);if(!c)return null;
+  const others=s.characters.filter(x=>x.id!==c.id);
+  const freeRel=others.filter(x=>!c.rels.includes(x.id));
+  const groups=s.groups.filter(g=>g.members.includes(c.id));
+  return `
+    <div class="row">${c.image?`<img src="${c.image}" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:12px">`:''}
+      <button class="btn btn-s" onclick="charImg('${c.id}')">${c.image?'Cambiar':'Añadir'} imagen</button>
+      ${c.image?`<button class="btn btn-s" onclick="charImgRm('${c.id}')">Quitar</button>`:''}</div>
+    <div class="field"><span class="lbl">Nombre</span><input value="${esc(c.name)}" oninput="updChar('${c.id}','name',this.value)"></div>
+    <div class="field"><span class="lbl">Rol</span><input value="${esc(c.role)}" placeholder="Protagonista, antagonista…" oninput="updChar('${c.id}','role',this.value)"></div>
+    ${state.meta.charFields.map(f=>`<div class="field"><span class="lbl">${esc(f.label)}</span>
+      <input value="${esc(c.fields[f.id]||'')}" oninput="updCharF('${c.id}','${f.id}',this.value)"></div>`).join('')}
+    <div class="field"><span class="lbl">Descripción</span><textarea oninput="updChar('${c.id}','body',this.value)">${esc(c.body)}</textarea></div>
+    <div class="field"><span class="lbl">Relaciones</span>
+      <div class="chips" style="margin-bottom:8px">${c.rels.map(id=>{const o=charById(s,id);return o?`<span class="chip click" onclick="openEnt('character','${o.id}')">${esc(o.name)}<span class="x" onclick="event.stopPropagation();rmRel('${c.id}','${o.id}')">✕</span></span>`:''}).join('')||'<span class="muted small">Sin relaciones.</span>'}</div>
+      ${freeRel.length?`<select onchange="addRel('${c.id}',this.value);this.value=''"><option value="">＋ Añadir relación…</option>${freeRel.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('')}</select>`:''}</div>
+    <div class="field"><span class="lbl">Grupos</span>
+      <div class="chips">${groups.map(g=>`<span class="chip click" onclick="openEnt('group','${g.id}')">${esc(g.name)}</span>`).join('')||'<span class="muted small">No pertenece a ningún grupo.</span>'}</div></div>
+    <div class="field"><span class="lbl">Aparece en los capítulos (libro actual)</span>${bookChecklist('characters',c.id)}</div>
+    <div class="row"><button class="btn" onclick="dupChar('${c.id}')">Duplicar</button>
+      <button class="btn btn-d" onclick="delChar('${c.id}')">Eliminar</button></div>`;
+}
+function updChar(id,k,v){const c=charById(curSaga(),id);if(c){c[k]=v;scheduleSave()}}
+function updCharF(id,fid,v){const c=charById(curSaga(),id);if(c){c.fields[fid]=v;scheduleSave()}}
+function charImg(id){pickImage(u=>{charById(curSaga(),id).image=u;scheduleSave();render()})}
+function charImgRm(id){charById(curSaga(),id).image=null;scheduleSave();render()}
+function addRel(id,other){
+  if(!other)return;
+  const s=curSaga(),a=charById(s,id),b=charById(s,other);
+  if(!a||!b)return;
+  if(!a.rels.includes(other))a.rels.push(other);
+  if(!b.rels.includes(id))b.rels.push(id);
+  scheduleSave();render();
+}
+function rmRel(id,other){
+  const s=curSaga(),a=charById(s,id),b=charById(s,other);
+  if(a)a.rels=a.rels.filter(x=>x!==other);
+  if(b)b.rels=b.rels.filter(x=>x!==id);
+  scheduleSave();render();
+}
+function dupChar(id){
+  const s=curSaga(),c=charById(s,id);
+  const n=JSON.parse(JSON.stringify(c));
+  n.id=uid();n.name=c.name+' (copia)';
+  for(const rid of n.rels){const o=charById(s,rid);if(o&&!o.rels.includes(n.id))o.rels.push(n.id)}
+  s.characters.push(n);scheduleSave();toast('Personaje duplicado');
+  openEnt('character',n.id);
+}
+async function delChar(id){
+  const s=curSaga(),c=charById(s,id);
+  if(!await askConfirm(`Eliminar el personaje «${c.name}».`))return;
+  for(const o of s.characters)o.rels=o.rels.filter(x=>x!==id);
+  for(const g of s.groups)g.members=g.members.filter(x=>x!==id);
+  for(const b of s.books)for(const ch of b.chapters)ch.links=ch.links.filter(l=>!(l.type==='characters'&&l.id===id));
+  toTrash('character',c.name,{sagaId:s.id},c);
+  s.characters=s.characters.filter(x=>x.id!==id);
+  scheduleSave();toast('Personaje eliminado (papelera)');goBack();
+}
+/* — Ubicación — */
+function entPlace(s,r){
+  const p=placeById(s,r.id);if(!p)return null;
+  const banned=placeDescendants(s,p.id);banned.add(p.id);
+  const opts=s.places.filter(x=>!banned.has(x.id));
+  return `
+    <div class="field"><span class="lbl">Nombre</span><input value="${esc(p.name)}" oninput="updPlace('${p.id}','name',this.value)"></div>
+    <div class="field"><span class="lbl">Dentro de</span>
+      <select onchange="setPlaceParent('${p.id}',this.value)"><option value="">— Raíz —</option>
+      ${opts.map(x=>`<option value="${x.id}" ${p.parentId===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+    <div class="field"><span class="lbl">Descripción</span><textarea oninput="updPlace('${p.id}','body',this.value)">${esc(p.body)}</textarea></div>
+    <div class="field"><span class="lbl">Aparece en los capítulos (libro actual)</span>${bookChecklist('places',p.id)}</div>
+    <div class="row"><button class="btn" onclick="addPlace('${p.id}')">＋ Crear sub-lugar</button>
+      <button class="btn btn-d" onclick="delPlace('${p.id}')">Eliminar</button></div>
+    <p class="muted small">Al eliminar una ubicación, sus sub-lugares suben un nivel.</p>`;
+}
+function updPlace(id,k,v){const p=placeById(curSaga(),id);if(p){p[k]=v;scheduleSave()}}
+function setPlaceParent(id,v){const p=placeById(curSaga(),id);p.parentId=v||null;scheduleSave()}
+async function delPlace(id){
+  const s=curSaga(),p=placeById(s,id);
+  if(!await askConfirm(`Eliminar la ubicación «${p.name}». Sus sub-lugares subirán un nivel.`))return;
+  for(const x of s.places)if(x.parentId===id)x.parentId=p.parentId;
+  for(const b of s.books)for(const ch of b.chapters)ch.links=ch.links.filter(l=>!(l.type==='places'&&l.id===id));
+  toTrash('place',p.name,{sagaId:s.id},p);
+  s.places=s.places.filter(x=>x.id!==id);
+  scheduleSave();toast('Ubicación eliminada (papelera)');goBack();
+}
+/* — Grupo — */
+function entGroup(s,r){
+  const g=s.groups.find(x=>x.id===r.id);if(!g)return null;
+  const free=s.characters.filter(c=>!g.members.includes(c.id));
+  return `
+    <div class="field"><span class="lbl">Nombre</span><input value="${esc(g.name)}" oninput="updGroup('${g.id}','name',this.value)"></div>
+    <div class="field"><span class="lbl">Descripción</span><textarea oninput="updGroup('${g.id}','body',this.value)">${esc(g.body)}</textarea></div>
+    <div class="field"><span class="lbl">Miembros</span>
+      <div class="chips" style="margin-bottom:8px">${g.members.map(id=>{const c=charById(s,id);return c?`<span class="chip click" onclick="openEnt('character','${c.id}')">${esc(c.name)}<span class="x" onclick="event.stopPropagation();rmMember('${g.id}','${c.id}')">✕</span></span>`:''}).join('')||'<span class="muted small">Sin miembros.</span>'}</div>
+      ${free.length?`<select onchange="addMember('${g.id}',this.value);this.value=''"><option value="">＋ Añadir miembro…</option>${free.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>`:''}</div>
+    <div class="field"><span class="lbl">Aparece en los capítulos (toda la saga)</span>${sagaChecklist('group',g.id)}</div>
+    <button class="btn btn-d" style="align-self:flex-start" onclick="delGroup('${g.id}')">Eliminar</button>`;
+}
+function updGroup(id,k,v){const g=curSaga().groups.find(x=>x.id===id);if(g){g[k]=v;scheduleSave()}}
+function addMember(gid,cid){if(!cid)return;const g=curSaga().groups.find(x=>x.id===gid);if(!g.members.includes(cid))g.members.push(cid);scheduleSave();render()}
+function rmMember(gid,cid){const g=curSaga().groups.find(x=>x.id===gid);g.members=g.members.filter(x=>x!==cid);scheduleSave();render()}
+async function delGroup(id){
+  const s=curSaga(),g=s.groups.find(x=>x.id===id);
+  if(!await askConfirm(`Eliminar el grupo «${g.name}».`))return;
+  toTrash('group',g.name,{sagaId:s.id},g);
+  s.groups=s.groups.filter(x=>x.id!==id);
+  scheduleSave();toast('Grupo eliminado (papelera)');goBack();
+}
+/* — Hito — */
+function entHito(s,r){
+  const h=entOfKind('hito',r.id,r.ctx);if(!h)return null;
+  return `
+    <div class="field"><span class="lbl">Título</span><input value="${esc(h.title)}" oninput="updHito('${r.ctx}','${h.id}','title',this.value)"></div>
+    <div class="row">
+      <div class="field" style="flex:1"><span class="lbl">Tipo</span>
+        <select onchange="updHito('${r.ctx}','${h.id}','kind',this.value)">
+          <option value="evento" ${h.kind==='evento'?'selected':''}>Evento (con duración)</option>
+          <option value="momento" ${h.kind==='momento'?'selected':''}>Momento (instante)</option></select></div>
+      <div class="field" style="width:110px"><span class="lbl">Orden</span>
+        <input type="number" value="${h.order}" onchange="updHitoOrder('${r.ctx}','${h.id}',this.value)"></div></div>
+    <div class="field"><span class="lbl">Ancla temporal</span>
+      <input value="${esc(h.anchor)}" placeholder="Mes y año, aunque sean ficticios…" oninput="updHito('${r.ctx}','${h.id}','anchor',this.value)"></div>
+    <div class="field"><span class="lbl">Descripción</span><textarea oninput="updHito('${r.ctx}','${h.id}','body',this.value)">${esc(h.body)}</textarea></div>
+    <div class="field"><span class="lbl">Capítulos que transcurren en este hito (toda la saga)</span>${sagaChecklist('hito',h.id,r.ctx)}</div>
+    <button class="btn btn-d" style="align-self:flex-start" onclick="delHito('${r.ctx}','${h.id}')">Eliminar</button>`;
+}
+function updHito(tlId,id,k,v){const h=entOfKind('hito',id,tlId);if(h){h[k]=v;scheduleSave()}}
+function updHitoOrder(tlId,id,v){const n=parseInt(v,10);if(!isNaN(n))updHito(tlId,id,'order',n)}
+async function delHito(tlId,id){
+  const s=curSaga(),tl=s.timelines.find(t=>t.id===tlId),h=entOfKind('hito',id,tlId);
+  if(!await askConfirm(`Eliminar el hito «${h.title}».`))return;
+  toTrash('hito',h.title,{sagaId:s.id,tlId},h);
+  tl.hitos=tl.hitos.filter(x=>x.id!==id);
+  scheduleSave();toast('Hito eliminado (papelera)');goBack();
+}
+/* — Easter egg — */
+function entEgg(s,r){
+  const e=s.easterEggs.find(x=>x.id===r.id);if(!e)return null;
+  return `
+    <div class="field"><span class="lbl">Título</span><input value="${esc(e.title)}" oninput="updEgg('${e.id}','title',this.value)"></div>
+    <div class="field"><span class="lbl">Contenido</span><textarea oninput="updEgg('${e.id}','body',this.value)">${esc(e.body)}</textarea></div>
+    <div class="field"><span class="lbl">Vive en los capítulos (toda la saga)</span>${sagaChecklist('egg',e.id)}</div>
+    <button class="btn btn-d" style="align-self:flex-start" onclick="delEgg('${e.id}')">Eliminar</button>`;
+}
+function updEgg(id,k,v){const e=curSaga().easterEggs.find(x=>x.id===id);if(e){e[k]=v;scheduleSave()}}
+async function delEgg(id){
+  const s=curSaga(),e=s.easterEggs.find(x=>x.id===id);
+  if(!await askConfirm(`Eliminar el secreto «${e.title}».`))return;
+  toTrash('egg',e.title,{sagaId:s.id},e);
+  s.easterEggs=s.easterEggs.filter(x=>x.id!==id);
+  scheduleSave();toast('Easter egg eliminado (papelera)');goBack();
+}
+/* — Palabra — */
+function entWord(s,r){
+  const l=s.languages.find(x=>x.id===r.ctx);if(!l)return null;
+  const w=l.words.find(x=>x.id===r.id);if(!w)return null;
+  return `
+    <div class="field"><span class="lbl">Término (${esc(l.name)})</span><input value="${esc(w.term)}" oninput="updWord('${r.ctx}','${w.id}','term',this.value)"></div>
+    <div class="field"><span class="lbl">Tipo gramatical</span><input value="${esc(w.type)}" placeholder="sustantivo, verbo…" oninput="updWord('${r.ctx}','${w.id}','type',this.value)"></div>
+    <div class="field"><span class="lbl">Significado</span><input value="${esc(w.meaning)}" oninput="updWord('${r.ctx}','${w.id}','meaning',this.value)"></div>
+    <div class="field"><span class="lbl">Notas</span><textarea placeholder="Pronunciación, uso…" oninput="updWord('${r.ctx}','${w.id}','notes',this.value)">${esc(w.notes)}</textarea></div>
+    <button class="btn btn-d" style="align-self:flex-start" onclick="delWord('${r.ctx}','${w.id}')">Eliminar</button>`;
+}
+function updWord(langId,id,k,v){const l=curSaga().languages.find(x=>x.id===langId);const w=l&&l.words.find(x=>x.id===id);if(w){w[k]=v;scheduleSave()}}
+async function delWord(langId,id){
+  const s=curSaga(),l=s.languages.find(x=>x.id===langId),w=l.words.find(x=>x.id===id);
+  if(!await askConfirm(`Eliminar la palabra «${w.term||'(sin término)'}».`))return;
+  toTrash('word',w.term||'(sin término)',{sagaId:s.id,langId},w);
+  l.words=l.words.filter(x=>x.id!==id);
+  scheduleSave();toast('Palabra eliminada (papelera)');goBack();
+}
+/* — Acto — */
+function entAct(s,r){
+  const b=curBook();if(!b)return null;
+  const a=b.acts.find(x=>x.id===r.id);if(!a)return null;
+  return `
+    <div class="field"><span class="lbl">Nombre</span><input value="${esc(a.name)}" oninput="updAct('${a.id}','name',this.value)"></div>
+    <div class="field" style="width:130px"><span class="lbl">Orden</span>
+      <input type="number" value="${a.order}" onchange="updActOrder('${a.id}',this.value)"></div>
+    <button class="btn btn-d" style="align-self:flex-start" onclick="delAct('${a.id}')">Eliminar</button>
+    <p class="muted small">Al eliminar un acto, sus capítulos quedan sin asignar.</p>`;
+}
+function updAct(id,k,v){const a=curBook().acts.find(x=>x.id===id);if(a){a[k]=v;scheduleSave()}}
+function updActOrder(id,v){const n=parseInt(v,10);if(!isNaN(n))updAct(id,'order',n)}
+async function delAct(id){
+  const s=curSaga(),b=curBook(),a=b.acts.find(x=>x.id===id);
+  if(!await askConfirm(`Eliminar el acto «${a.name}». Sus capítulos quedarán sin asignar.`))return;
+  for(const c of b.chapters)if(c.actId===id)c.actId=null;
+  toTrash('act',a.name,{sagaId:s.id,bookId:b.id},a);
+  b.acts=b.acts.filter(x=>x.id!==id);
+  scheduleSave();toast('Acto eliminado (papelera)');goBack();
+}
+
+/* ═══════════ Ajustes ═══════════ */
+function renderSettings(){
+  const m=state.meta;
+  const themeCards=Object.entries(THEMES).map(([id,t])=>`
+    <button class="themecard ${m.themeId===id?'on':''}" onclick="setTheme('${id}')">
+      <div class="sw"><i style="background:${t.v.ink}"></i><i style="background:${t.v.panel}"></i><i style="background:${t.v.lapis}"></i><i style="background:${t.v.text}"></i></div>
+      <b>${t.name}</b> <span class="small muted">${t.dark?'oscuro':'claro'}</span></button>`).join('');
+  const CATS=[['characters','Personajes'],['places','Ubicaciones'],['groups','Grupos'],['easterEggs','Easter eggs']];
+  view().innerHTML=`<div class="wrap-n stack">
+    <div><h2>Apariencia</h2>
+      <div class="grid" style="margin:10px 0 16px">${themeCards}</div>
+      <div class="row" style="margin-bottom:14px">
+        <span class="lbl" style="margin:0">Acento</span>
+        <input type="color" value="${m.accent||THEMES[m.themeId].v.lapis}" oninput="setAccent(this.value)">
+        ${m.accent?'<button class="btn btn-s" onclick="clearAccent()">Quitar acento personalizado</button>':''}
+      </div>
+      <div class="row" style="margin-bottom:14px">
+        <span class="lbl" style="margin:0">Tamaño de letra al escribir</span>
+        <div class="seg">${[['s','S'],['m','M'],['l','L']].map(([k,l])=>`<button class="${m.fontScale===k?'on':''}" onclick="setFS('${k}')">${l}</button>`).join('')}</div>
+      </div>
+      <div class="row">
+        <span class="lbl" style="margin:0">Velocidad de lectura (palabras/min)</span>
+        <input type="number" min="80" max="600" value="${m.wpm}" style="width:100px" onchange="setWpm(this.value)">
+      </div>
+    </div>
+    <div class="sect"><h2>Colores por categoría</h2>
+      <div class="card">${CATS.map(([k,l])=>`<div class="trow">
+        <input type="color" value="${m.catColors[k]}" oninput="setCatColor('${k}',this.value)">
+        <div class="tinfo"><b>${l}</b></div></div>`).join('')}</div>
+    </div>
+    <div class="sect"><h2>Campos de personaje</h2>
+      <div class="card">${m.charFields.map(f=>`<div class="trow">
+        <div class="tinfo"><b style="cursor:pointer" onclick="renameField('${f.id}')">${esc(f.label)}</b></div>
+        <button class="btn btn-s btn-d" onclick="delField('${f.id}')">Eliminar</button></div>`).join('')}
+      <div style="padding-top:10px"><button class="btn btn-s" onclick="addField()">＋ Añadir campo</button></div></div>
+    </div>
+    <div class="sect"><h2>Copias de seguridad</h2>
+      <div class="card stack" style="gap:10px">
+        <p class="small muted">Última copia: <b>${m.lastBackup?fmtDT(m.lastBackup):'nunca'}</b>. Guarda copias con regularidad: son tu única red de seguridad.</p>
+        <div class="row">
+          <button class="btn btn-p" onclick="expJson()">Descargar copia .json</button>
+          <button class="btn" onclick="expClone()">Descargar clon .html</button>
+          <button class="btn" onclick="pickJsonImport()">Importar copia .json</button>
+        </div>
+        <p class="small muted">El clon .html es esta misma app con tus datos dentro: ábrelo en otro dispositivo y lo restaura todo.</p>
+      </div>
+    </div>
+    <div class="sect"><h2>Papelera <span class="muted small num">${state.trash.length}/25 · 30 días</span></h2>
+      <div class="card">${state.trash.map(t=>`<div class="trow">
+        <div class="tinfo"><b>${esc(t.label)}</b><span>${TRASH_KINDS[t.kind]||t.kind} · ${fmtDT(t.ts)}</span></div>
+        <button class="btn btn-s" onclick="restoreTrash('${t.id}')">Restaurar</button></div>`).join('')||'<p class="muted small">La papelera está vacía.</p>'}
+      ${state.trash.length?`<div style="padding-top:10px"><button class="btn btn-s btn-d" onclick="emptyTrash()">Vaciar papelera</button></div>`:''}</div>
+    </div>
+  </div>`;
+}
+function setTheme(id){state.meta.themeId=id;scheduleSave();applyTheme();render()}
+function setAccent(v){state.meta.accent=v;scheduleSave();applyTheme()}
+function clearAccent(){state.meta.accent=null;scheduleSave();applyTheme();render()}
+function setFS(v){state.meta.fontScale=v;scheduleSave();applyTheme();render()}
+function setWpm(v){const n=Math.min(600,Math.max(80,parseInt(v,10)||200));state.meta.wpm=n;scheduleSave();render()}
+function setCatColor(k,v){state.meta.catColors[k]=v;scheduleSave()}
+async function renameField(id){
+  const f=state.meta.charFields.find(f=>f.id===id);
+  const n=await askText('Renombrar campo',f.label);
+  if(n){f.label=n;scheduleSave();render()}
+}
+async function delField(id){
+  const f=state.meta.charFields.find(f=>f.id===id);
+  if(!await askConfirm(`Eliminar el campo «${f.label}» de las fichas de personaje.`))return;
+  state.meta.charFields=state.meta.charFields.filter(x=>x.id!==id);
+  scheduleSave();render();
+}
+async function addField(){
+  const n=await askText('Nuevo campo de personaje');
+  if(n){state.meta.charFields.push({id:'f_'+uid(),label:n});scheduleSave();render()}
+}
+async function emptyTrash(){
+  if(!await askConfirm('Vaciar la papelera de forma definitiva.'))return;
+  state.trash=[];scheduleSave();render();toast('Papelera vaciada');
+}
+
+/* ═══════════ Arranque ═══════════ */
+load();
+applyTheme();
+initDlg();
+$('#btnBack').onclick=goBack;
+$('#btnGear').onclick=()=>{if(rTop().v!=='settings')go({v:'settings'})};
+if(curSaga()&&curBook()){
+  ensureSession(curBook());
+  route=[{v:'lib'},{v:'book',tab:'resumen'}];
+  pushHist();
+}
+setDot('saved');
+render();
+</script>
