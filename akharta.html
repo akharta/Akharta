@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Akharta — Taller de novela</title>
 <script>
 /* Red de seguridad: si algun script falla, muestra el error en pantalla (solo ASCII aqui). */
@@ -2396,6 +2397,10 @@ load();
 applyTheme();
 initDlg();
 cropInit();
+/* PWA: solo se activa cuando la app se sirve por https (hosting); como archivo local es inerte */
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+}
 $('#btnBack').onclick=goBack;
 $('#btnGear').onclick=()=>{if(rTop().v!=='settings')go({v:'settings'})};
 if(curSaga()&&curBook()){
