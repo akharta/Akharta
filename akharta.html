@@ -1,4 +1,21 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Akharta — Taller de novela</title>
+<script>
+/* Red de seguridad: si algun script falla, muestra el error en pantalla (solo ASCII aqui). */
+window.addEventListener('error',function(e){
+  try{
+    var d=document.getElementById('fatalbar');
+    if(!d){
+      d=document.createElement('div');
+      d.id='fatalbar';
+      d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#7a1f1f;color:#fff;padding:10px 14px;font:12px/1.5 monospace;white-space:pre-wrap;max-height:45vh;overflow:auto';
+      (document.body||document.documentElement).appendChild(d);
+    }
+    d.textContent+='ERROR: '+e.message+' [linea '+(e.lineno||'?')+']\n';
+  }catch(x){}
+});
+</script>
 <style>
 :root{
   --ink:#0C0A09; --surface:#131110; --panel:#1C1917; --paper:#171412;
@@ -738,7 +755,7 @@ function dl(name,blob){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
-const slug=s=>(s||'akharta').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'akharta';
+const slug=s=>(s||'akharta').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'akharta';
 function markBackup(){state.meta.lastBackup=Date.now();scheduleSave()}
 function expJson(){
   dl(`akharta-copia-${today()}.json`,new Blob([JSON.stringify(state)],{type:'application/json'}));
