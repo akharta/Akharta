@@ -29,9 +29,12 @@ window.addEventListener('error',function(e){
   --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 [hidden]{display:none!important}
-html,body{background:var(--ink);color:var(--text)}
+html,body{background:var(--ink);color:var(--text);margin:0;padding:0}
 body{font-family:var(--ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
-#app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+/* Altura fija (no min-): el scroll vive DENTRO de #view, que es contra lo que
+   se anclan las barras pegajosas del editor. Con min-height el documento crecía,
+   el scroll era del body y ningún sticky interno funcionaba. */
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--lapis);outline-offset:1px;border-radius:4px}
 input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
@@ -569,7 +572,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5 · 2026-07-22';
+const APP_VERSION='3.5.1 · 2026-07-22';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1822,6 +1825,9 @@ function renderChap(r){
     <div id="ed" contenteditable="true" spellcheck="true" lang="es" class="${edClasses(ch)}" aria-label="Texto del capítulo"></div>
   </div>`;
   const ed=$('#ed');ed.innerHTML=ch.body||'<p><br></p>';
+  /* ancla las barras al borde real del visor (Chrome pega los sticky bajo el padding del scroller) */
+  const _padTop=parseFloat(getComputedStyle(view()).paddingTop)||0;
+  $('.ed-tools').style.top=(-_padTop)+'px';
   updCount(ch);
   $('#chTitle').oninput=e=>{ch.title=e.target.value;ch.updated=Date.now();book.updated=Date.now();scheduleSave()};
   ed.addEventListener('input',()=>{
@@ -1861,7 +1867,8 @@ function renderChap(r){
     const fb=$('#findBar');
     if(fb.hidden){
       const tools=$('.ed-tools');
-      if(tools)fb.style.top=tools.offsetHeight+'px'; /* pegada justo bajo la barra, aunque esta ocupe 2 filas */
+      const pt=parseFloat(getComputedStyle(view()).paddingTop)||0;
+      if(tools)fb.style.top=(tools.offsetHeight-pt)+'px'; /* pegada justo bajo la barra, aunque esta ocupe 2 filas */
       fb.hidden=false;$('#fbQ').focus();fbUpdate(false);
     }
     else fbClose();
