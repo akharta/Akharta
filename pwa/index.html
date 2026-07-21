@@ -539,6 +539,18 @@ mark.rvk.cur,.rv-blk{background:rgba(224,122,107,.4)}
 .chapcard.sz-l .ci{padding:14px 16px;gap:7px}
 .chapcard.sz-l b{font-size:18.5px}
 .chapcard.sz-l .ext{-webkit-line-clamp:6;font-size:13.5px}
+/* tamaños de tarjeta en el Mundo (mosaico) */
+.entcard.ez-s{padding:9px 11px}
+.entcard.ez-s b{font-size:13.5px;margin-bottom:0}
+.entcard.ez-s .desc,.entcard.ez-s .leg,.entcard.ez-s .small{display:none}
+.entcard.ez-s .avatar{width:34px;height:34px;font-size:14px;border-width:1.5px}
+.entcard.ez-s .prow{margin-bottom:0}
+.entcard.ez-s img{height:56px;margin-bottom:6px}
+.entcard.ez-l .avatar{width:78px;height:78px;font-size:30px}
+.entcard.ez-l b{font-size:18px}
+.entcard.ez-l .desc{-webkit-line-clamp:4;font-size:13.5px}
+.entcard.ez-l .leg{font-size:12.5px}
+.entcard.ez-l .leg>div{-webkit-line-clamp:3}
 
 /* escena enfocada en el editor */
 #ed .sc-dim{opacity:.2;filter:blur(1.2px);transition:opacity .25s}
@@ -572,7 +584,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5.1 · 2026-07-22';
+const APP_VERSION='3.5.2 · 2026-07-22';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1120,7 +1132,7 @@ function viewCtl(sec,modes){
   </span>`;
 }
 function gridStyle(sec){
-  const px=(sec==='chapters'?{s:230,m:245,l:370}:{s:130,m:175,l:240})[state.meta.views[sec].size||'m'];
+  const px=(sec==='chapters'?{s:230,m:245,l:370}:{s:118,m:175,l:280})[state.meta.views[sec].size||'m'];
   return `grid-template-columns:repeat(auto-fill,minmax(${px}px,1fr))`;
 }
 function sortSel(cur,fn,extra=''){
@@ -1455,7 +1467,7 @@ function fillMundo(){
         </button>`).join('')||'<p class="muted">Sin resultados con esos filtros.</p>'
       :`<div class="grid-w" style="${gridStyle('characters')}">${list.map(c=>{
         const f2=state.meta.charFields.slice(0,2).map(f=>c.fields[f.id]).filter(Boolean).join(' · ');
-        return `<button class="entcard" style="--stc:${STCLR(c.status)};border-left-color:${cc.characters}" onclick="openEnt('character','${c.id}')">
+        return `<button class="entcard ez-${state.meta.views.characters.size||'m'}" style="--stc:${STCLR(c.status)};border-left-color:${cc.characters}" onclick="openEnt('character','${c.id}')">
           <div class="prow"><span class="avatar">${c.image?`<img src="${c.image}" alt="">`:esc((c.name||'?')[0])}</span>
           <div style="min-width:0"><b>${esc(c.name)}</b>${f2?`<div class="small muted">${esc(f2)}</div>`:''}</div></div>
           <div class="desc">${esc(c.body.slice(0,110))}</div>
@@ -1491,7 +1503,7 @@ function fillMundo(){
         ?list.map(p=>`<button class="lrow" style="--stc:${STCLR(p.status)}" onclick="openEnt('place','${p.id}')">
             <div class="li"><b>${esc(p.name)}</b><div class="desc-1">${esc(pathOf(p)||p.body.slice(0,100))}</div></div>
           </button>`).join('')
-        :`<div class="grid-w" style="${gridStyle('places')}">${list.map(p=>`<button class="entcard" style="--stc:${STCLR(p.status)};border-left-color:${cc.places}" onclick="openEnt('place','${p.id}')">
+        :`<div class="grid-w" style="${gridStyle('places')}">${list.map(p=>`<button class="entcard ez-${state.meta.views.places.size||'m'}" style="--stc:${STCLR(p.status)};border-left-color:${cc.places}" onclick="openEnt('place','${p.id}')">
             <b>${esc(p.name)}</b>${pathOf(p)?`<div class="small muted">${esc(pathOf(p))}</div>`:''}
             <div class="desc">${esc(p.body.slice(0,110))}</div></button>`).join('')}</div>`)
         +(list.length?'':'<p class="muted">Sin resultados con esos filtros.</p>');
@@ -1526,7 +1538,7 @@ function fillMundo(){
       ?list.map(g=>`<button class="lrow" style="--stc:${STCLR(g.status)}" onclick="openEnt('group','${g.id}')">
           <div class="li"><b>${esc(g.name)}</b><div class="desc-1">${esc(g.body.slice(0,110))}</div>${legG(g)}</div>
         </button>`).join('')
-      :`<div class="grid-w" style="${gridStyle('groups')}">${list.map(g=>`<button class="entcard" style="--stc:${STCLR(g.status)};border-left-color:${cc.groups}" onclick="openEnt('group','${g.id}')">
+      :`<div class="grid-w" style="${gridStyle('groups')}">${list.map(g=>`<button class="entcard ez-${state.meta.views.groups.size||'m'}" style="--stc:${STCLR(g.status)};border-left-color:${cc.groups}" onclick="openEnt('group','${g.id}')">
         <b>${esc(g.name)}</b><div class="desc">${esc(g.body.slice(0,110))}</div>
         ${legG(g)}</button>`).join('')}</div>`;
     el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Grupos <span class="muted small num">${s.groups.length}</span></h2>
@@ -1569,7 +1581,7 @@ function fillMundo(){
       ?list.map(e=>`<button class="lrow" style="--stc:${STCLR(e.status)}" onclick="openEnt('egg','${e.id}')">
           <div class="li"><b>${esc(e.title)}</b><div class="desc-1">${esc(e.body.slice(0,110))}</div>${legE(e)}</div>
         </button>`).join('')
-      :`<div class="grid-w" style="${gridStyle('easterEggs')}">${list.map(e=>`<button class="entcard" style="--stc:${STCLR(e.status)};border-left-color:${cc.easterEggs}" onclick="openEnt('egg','${e.id}')">
+      :`<div class="grid-w" style="${gridStyle('easterEggs')}">${list.map(e=>`<button class="entcard ez-${state.meta.views.easterEggs.size||'m'}" style="--stc:${STCLR(e.status)};border-left-color:${cc.easterEggs}" onclick="openEnt('egg','${e.id}')">
         <b>${esc(e.title)}</b><div class="desc">${esc(e.body.slice(0,110))}</div>
         ${legE(e)}</button>`).join('')}</div>`;
     el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Easter eggs <span class="muted small num">${s.easterEggs.length}</span></h2>
@@ -2532,7 +2544,8 @@ function entChar(s,r){
       <div class="chips" style="margin-bottom:8px">${groups.map(g=>`<span class="chip click" onclick="openEnt('group','${g.id}')">${esc(g.name)}<span class="x" onclick="event.stopPropagation();charRmGroup('${c.id}','${g.id}')">✕</span></span>`).join('')||'<span class="muted small">No pertenece a ningún grupo.</span>'}</div>
       ${s.groups.filter(g=>!g.members.includes(c.id)).length?`<select onchange="charAddGroup('${c.id}',this.value);this.value=''"><option value="">＋ Añadir a un grupo…</option>${s.groups.filter(g=>!g.members.includes(c.id)).map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>`:''}</div>
     <div class="field"><span class="lbl">Easter eggs vinculados</span>
-      <div class="chips">${s.easterEggs.filter(e=>(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).map(e=>`<span class="chip click" onclick="openEnt('egg','${e.id}')">${esc(e.title)}</span>`).join('')||'<span class="muted small">Ninguno. Se vinculan desde la ficha del secreto.</span>'}</div></div>
+      <div class="chips" style="margin-bottom:8px">${s.easterEggs.filter(e=>(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).map(e=>`<span class="chip click" onclick="openEnt('egg','${e.id}')">${esc(e.title)}<span class="x" onclick="event.stopPropagation();charRmEgg('${c.id}','${e.id}')">✕</span></span>`).join('')||'<span class="muted small">Ninguno.</span>'}</div>
+      ${s.easterEggs.filter(e=>!(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).length?`<select onchange="charAddEgg('${c.id}',this.value);this.value=''"><option value="">＋ Vincular un secreto…</option>${s.easterEggs.filter(e=>!(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).map(e=>`<option value="${e.id}">${esc(e.title)}</option>`).join('')}</select>`:''}</div>
     <div class="field"><span class="lbl">Aparece en los capítulos (libro actual)</span>${bookChecklist('characters',c.id)}</div>
     <div class="row"><button class="btn" onclick="dupChar('${c.id}')">Duplicar</button>
       <button class="btn btn-d" onclick="delChar('${c.id}')">Eliminar</button></div>`;
@@ -2598,6 +2611,8 @@ function rmPlaceRel(id,pid){
   scheduleSave();render();
 }
 function charAddGroup(cid,gid){if(!gid)return;const g=curSaga().groups.find(g=>g.id===gid);if(g&&!g.members.includes(cid))g.members.push(cid);scheduleSave();render()}
+function charAddEgg(cid,eid){if(!eid)return;const e=curSaga().easterEggs.find(x=>x.id===eid);if(e&&!e.links.some(l=>l.type==='characters'&&l.id===cid))e.links.push({type:'characters',id:cid});scheduleSave();render()}
+function charRmEgg(cid,eid){const e=curSaga().easterEggs.find(x=>x.id===eid);if(e)e.links=e.links.filter(l=>!(l.type==='characters'&&l.id===cid));scheduleSave();render()}
 function charRmGroup(cid,gid){const g=curSaga().groups.find(g=>g.id===gid);if(g)g.members=g.members.filter(x=>x!==cid);scheduleSave();render()}
 function eggAddLink(eid,v){
   if(!v)return;
