@@ -584,7 +584,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5.2 · 2026-07-22';
+const APP_VERSION='3.5.3 · 2026-07-22';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -713,14 +713,21 @@ function purgeTrash(){
   const lim=Date.now()-30*864e5;
   state.trash=state.trash.filter(t=>t.ts>lim).slice(0,25);
 }
-let state;
+let state,SKEY=K,cloneDate=null;
 function load(){
+  const seedEl=document.getElementById('akharta-seed');
+  /* Chrome comparte el almacenamiento entre TODOS los archivos file://, así que
+     cada clon necesita su propio cajón: si no, los datos de un clon abierto antes
+     pisaban a los que el clon nuevo lleva dentro y el respaldo no servía de nada.
+     Cajón propio ⇒ al abrirlo por primera vez manda su semilla; después, lo que
+     escribas en ese clon se conserva y no lo pisa ningún otro. */
+  if(seedEl){
+    SKEY=K+'::'+(seedEl.getAttribute('data-seed-id')||'legacy');
+    cloneDate=seedEl.getAttribute('data-seed-date')||'';
+  }else SKEY=K;
   let d=null;
-  try{const raw=localStorage.getItem(K);if(raw)d=JSON.parse(raw)}catch(e){}
-  if(!d){
-    const seed=document.getElementById('akharta-seed');
-    if(seed){try{d=JSON.parse(seed.textContent)}catch(e){}}
-  }
+  try{const raw=localStorage.getItem(SKEY);if(raw)d=JSON.parse(raw)}catch(e){}
+  if(!d&&seedEl){try{d=JSON.parse(seedEl.textContent)}catch(e){}}
   state=migrate(d);
   normalize();purgeTrash();
 }
@@ -732,7 +739,7 @@ function setDot(st){
   $('#saveTxt').textContent={saving:'Guardando…',saved:'Guardado',err:'Sin guardado'}[st];
 }
 function save(){
-  try{localStorage.setItem(K,JSON.stringify(state));setDot('saved')}
+  try{localStorage.setItem(SKEY,JSON.stringify(state));setDot('saved')}
   catch(e){setDot('err');toast('No se pudo guardar (almacenamiento lleno o privado). Exporta una copia .json.')}
 }
 function scheduleSave(){setDot('saving');clearTimeout(saveT);saveT=setTimeout(save,400)}
@@ -900,8 +907,11 @@ function expClone(){
   const oldSeed=root.querySelector('#akharta-seed');if(oldSeed)oldSeed.remove();
   const seed=document.createElement('script');
   seed.type='application/json';seed.id='akharta-seed';
+  seed.setAttribute('data-seed-id',uid());          /* cajón propio de este clon */
+  seed.setAttribute('data-seed-date',new Date().toISOString());
   seed.textContent=JSON.stringify(state).replace(/<\//g,'<\\/');
-  (root.querySelector('body')||root).appendChild(seed);
+  /* en el <head>: así los datos ya están disponibles cuando arranca la app */
+  (root.querySelector('head')||root).appendChild(seed);
   dl(`akharta-clon-${today()}.html`,new Blob(['<!doctype html>\n'+root.outerHTML],{type:'text/html'}));
   markBackup();toast('Clon .html descargado');
 }
@@ -2874,7 +2884,7 @@ function renderSettings(){
         <button class="btn btn-s" onclick="restoreTrash('${t.id}')">Restaurar</button></div>`).join('')||'<p class="muted small">La papelera está vacía.</p>'}
       ${state.trash.length?`<div style="padding-top:10px"><button class="btn btn-s btn-d" onclick="emptyTrash()">Vaciar papelera</button></div>`:''}</div>
     </div>
-    <p class="small muted" style="text-align:center;margin-top:10px">Akharta v${APP_VERSION}</p>
+    <p class="small muted" style="text-align:center;margin-top:10px">Akharta v${APP_VERSION}${cloneDate?`<br>Estás en un clon creado el ${esc(fmtDT(Date.parse(cloneDate)||Date.now()))}`:''}</p>
   </div>`;
 }
 function setTheme(id){state.meta.themeId=id;scheduleSave();applyTheme();render()}
@@ -2912,21 +2922,28 @@ async function emptyTrash(){
 }
 
 /* ═══════════ Arranque ═══════════ */
-load();
-applyTheme();
-initDlg();
-cropInit();
-/* PWA: solo se activa cuando la app se sirve por https (hosting); como archivo local es inerte */
-if('serviceWorker' in navigator&&location.protocol==='https:'){
-  try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+/* Se espera a que el documento esté completo: el clon lleva sus datos en una
+   etiqueta que puede ir después de estos scripts, y arrancando antes de tiempo
+   no se veía (los clones no restauraban nada). */
+function boot(){
+  load();
+  applyTheme();
+  initDlg();
+  cropInit();
+  /* PWA: solo se activa cuando la app se sirve por https (hosting); como archivo local es inerte */
+  if('serviceWorker' in navigator&&location.protocol==='https:'){
+    try{navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+  }
+  $('#btnBack').onclick=goBack;
+  $('#btnGear').onclick=()=>{if(rTop().v!=='settings')go({v:'settings'})};
+  if(curSaga()&&curBook()){
+    ensureSession(curBook());
+    route=[{v:'lib'},{v:'book',tab:'resumen'}];
+    pushHist();
+  }
+  setDot('saved');
+  render();
 }
-$('#btnBack').onclick=goBack;
-$('#btnGear').onclick=()=>{if(rTop().v!=='settings')go({v:'settings'})};
-if(curSaga()&&curBook()){
-  ensureSession(curBook());
-  route=[{v:'lib'},{v:'book',tab:'resumen'}];
-  pushHist();
-}
-setDot('saved');
-render();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
 </script>
