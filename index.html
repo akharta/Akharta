@@ -584,7 +584,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5.5 · 2026-09-12';
+const APP_VERSION='3.5.6 · 2026-09-12';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -2418,13 +2418,45 @@ function edBlocks(){const ed=$('#ed');return ed?[...ed.children]:[]}
    sin envolver) no eran hijos-bloque de #ed: ni la sangría ni las escenas podían
    engancharse a ellas. Idempotente: sobre contenido ya bien formado no toca nada. */
 const ED_BLOCK_TAGS=new Set(['P','DIV','H1','H2','H3','H4','H5','H6','BLOCKQUOTE','PRE','UL','OL','LI']);
+const edIsBlock=n=>n.nodeType===1&&ED_BLOCK_TAGS.has(n.tagName);
 function normalizeEd(ed){
-  let changed=false,run=null;
+  let changed=false;
+  /* 1) DESANIDAR: en capítulos antiguos todo el texto podía venir dentro de un
+     único contenedor <div>/<p> con los párrafos dentro. Para la app eso era «un
+     solo párrafo»: la sangría caía en la 1ª línea y la escena marcaba todo. Se
+     sube el contenido de cualquier bloque que contenga otros bloques (las listas
+     UL/OL se respetan). Idempotente sobre contenido ya bien formado. */
+  let again=true,guard=0;
+  while(again&&guard++<50){
+    again=false;
+    for(const c of [...ed.children]){
+      if(c.tagName==='UL'||c.tagName==='OL')continue;
+      if(edIsBlock(c)&&[...c.childNodes].some(n=>edIsBlock(n)&&n.tagName!=='LI')){
+        while(c.firstChild)ed.insertBefore(c.firstChild,c);
+        ed.removeChild(c);again=true;changed=true;
+      }
+    }
+  }
+  /* 2) Envolver texto/inline suelto en <p> */
+  let run=null;
   for(const node of [...ed.childNodes]){
-    if(node.nodeType===1&&ED_BLOCK_TAGS.has(node.tagName)){run=null;continue}
-    if(node.nodeType===3&&!node.nodeValue.trim()&&!run){continue} /* espacios entre bloques */
+    if(edIsBlock(node)){run=null;continue}
+    if(node.nodeType===3&&!node.nodeValue.trim()&&!run){continue}
     if(!run){run=document.createElement('p');ed.insertBefore(run,node);changed=true}
     run.appendChild(node);
+  }
+  /* 3) Si TODO el capítulo quedó en un solo bloque con saltos <br> (párrafos hechos
+     con Enter que crearon <br> en vez de bloques), partirlo en párrafos reales.
+     Solo actúa sobre el caso degenerado de un único bloque: no toca capítulos que
+     ya tienen varios párrafos (respeta saltos suaves). */
+  if(ed.children.length===1&&ed.children[0].tagName!=='UL'&&ed.children[0].tagName!=='OL'&&ed.children[0].querySelector('br')){
+    const only=ed.children[0];
+    const parts=only.innerHTML.split(/(?:<br\s*\/?>\s*)+/i).map(x=>x.trim()).filter(x=>x&&!/^(<br\s*\/?>)+$/i.test(x));
+    if(parts.length>1){
+      only.remove();
+      for(const p of parts){const el=document.createElement('p');el.innerHTML=p;ed.appendChild(el)}
+      changed=true;
+    }
   }
   if(!ed.children.length){ed.innerHTML='<p><br></p>';changed=true}
   return changed;
