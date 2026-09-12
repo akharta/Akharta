@@ -584,7 +584,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5.3 · 2026-07-22';
+const APP_VERSION='3.5.4 · 2026-09-12';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1264,7 +1264,7 @@ function renderResumen(r,s,b){
     </div>
     <div class="sect stack">
       <div class="field"><label class="lbl" for="fIdea">Idea (una frase)</label>
-        <input id="fIdea" value="${esc(b.idea)}" placeholder="La chispa del libro…" oninput="updBook('idea',this.value)"></div>
+        <textarea id="fIdea" placeholder="La chispa del libro…" style="min-height:0" oninput="updBook('idea',this.value)">${esc(b.idea)}</textarea></div>
       <div class="field"><label class="lbl" for="fSin">Sinopsis</label>
         <textarea id="fSin" placeholder="De qué va la historia…" oninput="updBook('sinopsis',this.value)">${esc(b.sinopsis)}</textarea></div>
     </div>
@@ -1847,6 +1847,7 @@ function renderChap(r){
     <div id="ed" contenteditable="true" spellcheck="true" lang="es" class="${edClasses(ch)}" aria-label="Texto del capítulo"></div>
   </div>`;
   const ed=$('#ed');ed.innerHTML=ch.body||'<p><br></p>';
+  if(normalizeEd(ed)){ch.body=cleanBody(ed);scheduleSave()} /* arregla capítulos antiguos de una vez */
   /* ancla las barras al borde real del visor (Chrome pega los sticky bajo el padding del scroller) */
   const _padTop=parseFloat(getComputedStyle(view()).paddingTop)||0;
   $('.ed-tools').style.top=(-_padTop)+'px';
@@ -2402,9 +2403,25 @@ function toggleScene(id){expScenes.has(id)?expScenes.delete(id):expScenes.add(id
 function addScene(){const ch=chNow();const sc={id:uid(),title:`Escena ${ch.scenes.length+1}`,note:''};ch.scenes.push(sc);expScenes.add(sc.id);scheduleSave();renderDrawer()}
 function updScene(id,k,v){const sc=chNow().scenes.find(s=>s.id===id);if(sc){sc[k]=v;scheduleSave()}}
 function mvScene(i,d){const a=chNow().scenes,j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];scheduleSave();renderDrawer()}
-function delScene(id){const ch=chNow();ch.scenes=ch.scenes.filter(s=>s.id!==id);scheduleSave();renderDrawer()}
+function delScene(id){const ch=chNow();ch.scenes=ch.scenes.filter(s=>s.id!==id);if($('#ed')){edBlocks().forEach(b=>setBlockScene(b,id,false));persistCh()}else scheduleSave();renderDrawer()}
 /* Tramos de escena dentro del capítulo */
 function edBlocks(){const ed=$('#ed');return ed?[...ed.children]:[]}
+/* Envuelve texto suelto o líneas inline en párrafos <p>, para que cada párrafo
+   sea un bloque real. Sin esto, en capítulos antiguos la primera línea (u otras
+   sin envolver) no eran hijos-bloque de #ed: ni la sangría ni las escenas podían
+   engancharse a ellas. Idempotente: sobre contenido ya bien formado no toca nada. */
+const ED_BLOCK_TAGS=new Set(['P','DIV','H1','H2','H3','H4','H5','H6','BLOCKQUOTE','PRE','UL','OL','LI']);
+function normalizeEd(ed){
+  let changed=false,run=null;
+  for(const node of [...ed.childNodes]){
+    if(node.nodeType===1&&ED_BLOCK_TAGS.has(node.tagName)){run=null;continue}
+    if(node.nodeType===3&&!node.nodeValue.trim()&&!run){continue} /* espacios entre bloques */
+    if(!run){run=document.createElement('p');ed.insertBefore(run,node);changed=true}
+    run.appendChild(node);
+  }
+  if(!ed.children.length){ed.innerHTML='<p><br></p>';changed=true}
+  return changed;
+}
 function selBlockRange(){
   const ed=$('#ed'),sel=getSelection();
   if(!ed||!sel||!sel.rangeCount)return null;
@@ -2414,29 +2431,56 @@ function selBlockRange(){
   if(a<0||b<0)return null;
   return[Math.min(a,b),Math.max(a,b)];
 }
+/* La escena marca sus bloques con data-scene="id [id2 …]". El atributo va dentro
+   del cuerpo del capítulo, así que sobrevive a ediciones y recargas y no se
+   descuadra como los índices numéricos (que resaltaban todo el capítulo). */
+function blockScenes(b){return (b.getAttribute('data-scene')||'').split(/\s+/).filter(Boolean)}
+function setBlockScene(b,id,on){
+  const set=new Set(blockScenes(b));
+  on?set.add(id):set.delete(id);
+  set.size?b.setAttribute('data-scene',[...set].join(' ')):b.removeAttribute('data-scene');
+}
+function persistCh(){const ch=chNow(),ed=$('#ed');if(ch&&ed){ch.body=cleanBody(ed);scheduleSave()}}
 function assignSceneSel(id){
   const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
   const r=selBlockRange();
   if(!r){toast('Selecciona primero en el capítulo el texto de la escena');return}
-  sc.from=r[0];sc.to=r[1];scheduleSave();renderDrawer();
-  toast(`Escena asignada a los párrafos ${r[0]+1}–${r[1]+1}`);
+  const blocks=edBlocks();
+  blocks.forEach((b,i)=>setBlockScene(b,id,i>=r[0]&&i<=r[1]));
+  sc.from=r[0];sc.to=r[1]; /* solo para la etiqueta descriptiva */
+  persistCh();renderDrawer();
+  const n=r[1]-r[0]+1;
+  toast(`Escena asignada (${n} ${n===1?'párrafo':'párrafos'})`);
 }
 function clearSceneRange(id){
   const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
-  sc.from=null;sc.to=null;scheduleSave();renderDrawer();
+  sc.from=null;sc.to=null;
+  if($('#ed'))edBlocks().forEach(b=>setBlockScene(b,id,false));
+  persistCh();renderDrawer();
+}
+function sceneBlocks(id,sc){
+  const blocks=edBlocks();
+  let m=blocks.filter(b=>blockScenes(b).includes(id));
+  if(!m.length&&sc&&sc.from!=null){ /* escenas antiguas por índice, acotado al rango válido */
+    const from=Math.max(0,Math.min(sc.from,blocks.length-1));
+    const to=Math.max(from,Math.min(sc.to,blocks.length-1));
+    m=blocks.slice(from,to+1);
+  }
+  return m;
 }
 function sceneFocus(id){
   const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
-  if(sc.from==null){toast('Esta escena aún no tiene texto asignado');return}
   if(window._drawerClose)closeOverlayUI(window._drawerClose);
   const blocks=edBlocks();
-  blocks.forEach((b,i)=>b.classList.toggle('sc-dim',i<sc.from||i>sc.to));
+  const matched=sceneBlocks(id,sc);
+  if(!matched.length){toast('Esta escena aún no tiene texto asignado');return}
+  const set=new Set(matched);
+  blocks.forEach(b=>b.classList.toggle('sc-dim',!set.has(b)));
   let x=document.getElementById('scExit');
   if(!x){x=document.createElement('button');x.id='scExit';x.className='btn btn-p';document.body.appendChild(x)}
   x.textContent=`✕ Ver todo el capítulo`;
   x.onclick=sceneExit;
-  const first=blocks[Math.min(sc.from,blocks.length-1)];
-  if(first)first.scrollIntoView({block:'center'});
+  matched[0].scrollIntoView({block:'center'}); /* lleva a la primera palabra remarcada */
 }
 function sceneExit(){
   for(const b of edBlocks())b.classList.remove('sc-dim');
