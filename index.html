@@ -584,7 +584,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5.4 · 2026-09-12';
+const APP_VERSION='3.5.5 · 2026-09-12';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1876,8 +1876,7 @@ function renderChap(r){
   const tbInd=$('#tbInd');
   tbInd.addEventListener('mousedown',e=>e.preventDefault());
   tbInd.onclick=()=>{
-    ed.focus();
-    const rg=selBlockRange();if(!rg)return;
+    const rg=edRange();if(!rg){toast('Toca primero el párrafo al que dar sangría');return}
     const blocks=edBlocks();
     const eff=b=>{const d=b.getAttribute('data-ind');return d==='1'?true:d==='0'?false:ed.classList.contains('ind')};
     const target=!eff(blocks[rg[0]]);
@@ -1898,10 +1897,16 @@ function renderChap(r){
   };
 }
 function updCount(ch){const el=$('#edCount');if(!el)return;const w=countWords(ch.body);el.textContent=`${fmtN(w)} palabras · ${readMins(w)} min`}
+/* Recuerda la última selección/cursor DENTRO del editor. En el móvil, al tocar
+   un botón o abrir el panel, el cursor se pierde y `selBlockRange()` daba null:
+   por eso la sangría y la asignación de escenas no hacían nada. Se guarda solo
+   cuando el foco está en el editor, así abrir el panel (foco fuera) no lo pisa. */
+let edLastRange=null;
 document.addEventListener('selectionchange',()=>{
   const ed=$('#ed');if(!ed)return;
   const ae=document.activeElement;
   if(ae!==ed&&!ed.contains(ae))return;
+  const rg=selBlockRange();if(rg)edLastRange=rg;
   for(const b of $$('.ed-tools .tb[data-c]')){
     try{b.classList.toggle('on',document.queryCommandState(b.dataset.c))}catch(e){}
   }
@@ -1911,8 +1916,10 @@ document.addEventListener('selectionchange',()=>{
   const h=$('#tbH');
   if(h){try{h.classList.toggle('on',(document.queryCommandValue('formatBlock')||'').toLowerCase()==='h3')}catch(e){}}
   const ind=$('#tbInd');
-  if(ind){const rg=selBlockRange();if(rg){const b=edBlocks()[rg[0]];if(b){const d=b.getAttribute('data-ind');ind.classList.toggle('on',d==='1'?true:d==='0'?false:ed.classList.contains('ind'))}}}
+  if(ind&&rg){const b=edBlocks()[rg[0]];if(b){const d=b.getAttribute('data-ind');ind.classList.toggle('on',d==='1'?true:d==='0'?false:ed.classList.contains('ind'))}}
 });
+/* Rango vigente: la selección viva si aún está en el editor; si no, la última recordada. */
+function edRange(){const r=selBlockRange();if(r){edLastRange=r;return r}return edLastRange}
 /* Buscar y reemplazar sobre nodos de texto */
 function textNodes(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const a=[];let n;while(n=w.nextNode())a.push(n);return a}
 function fbRegex(){
@@ -2443,7 +2450,7 @@ function setBlockScene(b,id,on){
 function persistCh(){const ch=chNow(),ed=$('#ed');if(ch&&ed){ch.body=cleanBody(ed);scheduleSave()}}
 function assignSceneSel(id){
   const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
-  const r=selBlockRange();
+  const r=edRange();
   if(!r){toast('Selecciona primero en el capítulo el texto de la escena');return}
   const blocks=edBlocks();
   blocks.forEach((b,i)=>setBlockScene(b,id,i>=r[0]&&i<=r[1]));
