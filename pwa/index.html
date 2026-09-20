@@ -414,6 +414,11 @@ body{background:transparent}
 #ccanvas{display:block;margin:0 auto 12px;border-radius:12px;cursor:grab;touch-action:none;max-width:100%;background:#000}
 #czoom{width:100%;margin-bottom:14px;accent-color:var(--lapis);padding:0}
 #crop .bts{display:flex;justify-content:flex-end;gap:8px}
+/* cuadro de exportar texto (escena/capítulo) para revisión editorial */
+#expo{position:fixed;inset:0;z-index:106;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#expo .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:min(580px,100%);max-height:90vh;display:flex;flex-direction:column}
+#expo textarea{flex:1;min-height:180px;max-height:52vh;resize:none;font-family:var(--serif);font-size:14px;line-height:1.5;margin:8px 0 12px}
+#expo .bts{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 
 /* reordenar arrastrando */
 .dhandle{cursor:grab;color:var(--muted);font-size:17px;padding:4px 8px;touch-action:none;user-select:none;flex:none}
@@ -598,7 +603,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.6.2 · 2026-09-20';
+const APP_VERSION='3.7 · 2026-09-20';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -2450,6 +2455,7 @@ function drawScenes(ch){
           <button class="btn btn-s" onclick="assignSceneSel('${sc.id}')">⌖ Asignar texto seleccionado</button>
           ${sc.from!=null?`<button class="btn btn-p btn-s" onclick="sceneSolo('${sc.id}')">✍ Escribir sola</button>
           <button class="btn btn-s" onclick="sceneFocus('${sc.id}')">👁 En contexto</button>
+          <button class="btn btn-s" onclick="exportScene('${sc.id}')">📤 Exportar para revisión</button>
           <button class="btn btn-s" onclick="clearSceneRange('${sc.id}')">Quitar tramo</button>`:''}
         </div>
         <p class="muted small" style="margin:0">${sc.from!=null
@@ -2672,11 +2678,60 @@ function sceneExit(){
   for(const b of edBlocks()){b.classList.remove('sc-dim');b.classList.remove('sc-hide')}
   const x=document.getElementById('scExit');if(x)x.remove();
 }
+/* ═══ Exportar texto para revisión (a Claude / ChatGPT como editores) ═══ */
+function blocksToText(blocks){
+  return blocks.map(b=>{
+    const d=document.createElement('div');
+    d.innerHTML=b.innerHTML.replace(/<br\s*\/?>/gi,'\n');
+    return (d.textContent||'').replace(/\s+\n/g,'\n').trim();
+  }).filter(Boolean).join('\n\n');
+}
+function reviewHeader(kind,name){
+  const s=curSaga(),b=curBook(),ch=chNow();
+  return `Revisión editorial — Akharta\n`+
+    `Saga: ${s?s.name:''} · Libro: ${b?b.name:''} · Capítulo: ${ch?ch.title:''}${kind==='escena'?` · Escena: ${name}`:''}\n\n`+
+    `Actúa como editor literario y revisa ${kind==='escena'?'esta escena':'este capítulo'}: ortografía, gramática, puntuación, estilo, ritmo, repeticiones, claridad y coherencia. Señala los problemas concretos y propón mejoras respetando la voz del autor; no reescribas sin explicar el porqué.\n\n`+
+    `— TEXTO —\n\n`;
+}
+function exportScene(id){
+  const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
+  const txt=blocksToText(sceneBlocks(id,sc));
+  if(!txt){toast('Esta escena no tiene texto asignado todavía');return}
+  showExport('Exportar escena para revisión',reviewHeader('escena',sc.title||'Escena')+txt,`escena-${slug(sc.title||ch.title)}-${today()}.txt`);
+}
+function exportChapterReview(){
+  const ch=chNow();if(!ch)return;
+  const txt=blocksToText(edBlocks());
+  if(!txt){toast('El capítulo está vacío');return}
+  showExport('Exportar capítulo para revisión',reviewHeader('capítulo')+txt,`capitulo-${slug(ch.title)}-${today()}.txt`);
+}
+function showExport(title,text,filename){
+  const ov=document.createElement('div');ov.id='expo';
+  ov.innerHTML=`<div class="box"><h3></h3>
+    <p class="small muted" style="margin:4px 0 0">Cópialo y pégalo en Claude o ChatGPT, o descárgalo como archivo.</p>
+    <textarea readonly spellcheck="false"></textarea>
+    <div class="bts"><button class="btn btn-p" id="expCopy">Copiar</button>
+    <button class="btn" id="expDl">Descargar .txt</button>
+    <button class="btn" id="expClose">Cerrar</button></div></div>`;
+  ov.querySelector('h3').textContent=title;
+  const ta=ov.querySelector('textarea');ta.value=text;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  openOverlay(close);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeOverlayUI(close)});
+  ov.querySelector('#expClose').onclick=()=>closeOverlayUI(close);
+  ov.querySelector('#expDl').onclick=()=>{dl(filename,new Blob([text],{type:'text/plain;charset=utf-8'}));toast('Archivo .txt descargado')};
+  ov.querySelector('#expCopy').onclick=async()=>{
+    try{await navigator.clipboard.writeText(text);toast('Copiado al portapapeles')}
+    catch(e){ta.focus();ta.select();try{document.execCommand('copy');toast('Copiado')}catch(_){toast('Mantén pulsado el texto y cópialo a mano')}}
+  };
+}
 /* Info y versiones */
 function drawInfo(ch){
   const w=countWords(ch.body);
   const vs=[...ch.versions].reverse();
-  return `<p class="small muted num">${fmtN(w)} palabras · ${readMins(w)} min de lectura</p>
+  return `<p class="small muted num">${fmtN(w)} palabras · ${readMins(w)} min de lectura · ≈${chapPages(ch)} pág.</p>
+    <button class="btn" style="margin-top:6px" onclick="exportChapterReview()">📤 Exportar capítulo para revisión</button>
     <h3 style="margin:16px 0 6px">Versiones <span class="muted small">(máx. 8)</span></h3>
     ${vs.map(v=>`<div class="vrow"><span>${fmtDT(v.ts)}</span><span class="num" style="flex:none">${fmtN(countWords(v.body))} pal.</span>
       <button class="btn btn-s" onclick="restoreVersion(${v.ts})">Restaurar</button></div>`).join('')||'<p class="muted small">Sin versiones guardadas.</p>'}
