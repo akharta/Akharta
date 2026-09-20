@@ -426,9 +426,22 @@ body{background:transparent}
 mark.fmk{background:rgba(201,162,39,.32);color:inherit;border-radius:3px}
 mark.fmk.cur{background:#C9A227;color:#171412}
 
-/* actos: filas con imagen y sinopsis */
-.acrow img{width:56px;height:40px;object-fit:cover;border-radius:8px;flex:none}
-.acrow .acsin{display:block;font-size:12.5px;color:var(--muted);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* escaleta: filas de capítulo dentro de cada acto (limpias, sin recuento) */
+.acrow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;cursor:pointer;
+  border:1px solid var(--line);border-left:3px solid var(--stc,var(--line));background:var(--surface);
+  margin-bottom:8px;transition:border-color .15s,background .15s}
+.acrow:hover{border-color:var(--lapis);background:var(--hover)}
+.acrow .acn{width:30px;height:30px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:14px;color:var(--lapis);background:var(--panel);border:1px solid var(--line)}
+.acrow img{width:46px;height:46px;object-fit:cover;border-radius:9px;flex:none}
+.acrow .aci{flex:1;min-width:0}
+.acrow .aci b{font-family:var(--serif);font-size:15px;display:block;line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.acrow .acsin{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:12.5px;color:var(--muted);font-style:italic;margin-top:2px}
+.acrow select{width:auto;flex:none;font-size:12px;padding:5px 6px;max-width:104px}
+/* modo «solo esta escena»: oculta el resto del capítulo para escribir concentrado */
+.sc-hide{display:none!important}
 .chip .rl{font-style:italic;color:var(--muted);font-size:12px;margin-left:2px}
 .chapcard .ext i{color:color-mix(in srgb,var(--muted) 60%,var(--lapis) 40%)}
 
@@ -584,7 +597,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.5.6 · 2026-09-12';
+const APP_VERSION='3.6 · 2026-09-20';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -653,7 +666,7 @@ function newSaga(name){return{id:uid(),name,characters:[],places:[],groups:[],ta
   timelines:[{id:uid(),name:'Cronología de '+name,hitos:[]}],languages:[],easterEggs:[],books:[]}}
 function newBook(name){return{id:uid(),name,cover:null,goalWords:0,estado:'en_marcha',idea:'',sinopsis:'',acts:[],chapters:[],updated:Date.now()}}
 function newChapter(){return{id:uid(),title:'Capítulo sin título',body:'',indent:true,spacing:'normal',image:null,
-  links:[],tagIds:[],actId:null,status:'borrador',scenes:[],versions:[],updated:Date.now(),created:Date.now()}}
+  links:[],tagIds:[],actId:null,status:'borrador',scenes:[],versions:[],lastPos:0,updated:Date.now(),created:Date.now()}}
 
 function migrate(d){
   if(!d||typeof d!=='object')return blank();
@@ -702,7 +715,7 @@ function normalize(){
         image:c.image||null,links:Array.isArray(c.links)?c.links:[],tagIds:Array.isArray(c.tagIds)?c.tagIds:[],
         actId:c.actId||null,status:STATUS[c.status]?c.status:'borrador',sinopsis:c.sinopsis||'',
         scenes:Array.isArray(c.scenes)?c.scenes:[],versions:Array.isArray(c.versions)?c.versions:[],
-        updated:c.updated||Date.now(),created:c.created||Date.now()});
+        lastPos:Number.isInteger(c.lastPos)?c.lastPos:0,updated:c.updated||Date.now(),created:c.created||Date.now()});
       for(const c of b.chapters)for(const sc of c.scenes)Object.assign(sc,{id:sc.id||uid(),title:sc.title||'Escena',note:sc.note||'',from:Number.isInteger(sc.from)?sc.from:null,to:Number.isInteger(sc.to)?sc.to:null});
     }
   }
@@ -1093,6 +1106,8 @@ function render(){
   if(typeof fbClear==='function')fbClear(); /* suelta los resaltados de búsqueda antes de desmontar nodos */
   if(typeof revClear==='function')revClear();
   {const sx=document.getElementById('scExit');if(sx)sx.remove()}
+  {const rb=document.getElementById('resumeBtn');if(rb)rb.remove()}
+  if(typeof soloScene!=='undefined')soloScene=null;
   const ae=document.activeElement;
   if(ae&&ae!==document.body&&view().contains(ae))ae.blur(); /* evita desmontar el editor con la selección viva */
   try{const sel=getSelection();if(sel&&sel.rangeCount&&view().contains(sel.anchorNode))sel.removeAllRanges()}catch(e){}
@@ -1715,15 +1730,17 @@ function addWord(langId){
 /* ── Actos ── */
 function renderActos(r,s,b){
   const acts=[...b.acts].sort((x,y)=>x.order-y.order);
-  const actSel=(c)=>`<select style="width:auto;font-size:12.5px;padding:5px 7px" onchange="setChapAct('${c.id}',this.value)">
+  const actSel=(c)=>`<select onclick="event.stopPropagation()" onchange="setChapAct('${c.id}',this.value)">
     <option value="">Sin acto</option>
     ${acts.map(a=>`<option value="${a.id}" ${c.actId===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select>`;
-  const chapRow=c=>`<div class="trow acrow">
-      ${c.image?`<img src="${c.image}" alt="">`:''}
-      <div class="tinfo">
-      <b style="cursor:pointer;font-family:var(--serif)" onclick="openChap('${c.id}')">${esc(c.title)}</b>
-      ${c.sinopsis?`<span class="acsin">${esc(c.sinopsis)}</span>`:''}
-      <span class="num">${fmtN(chapWords(c))} palabras · ≈${chapPages(c)} pág.</span></div>${actSel(c)}</div>`;
+  const chapRow=c=>{
+    const n=b.chapters.indexOf(c)+1;
+    const extract=c.sinopsis||plain(c.body).trim().slice(0,90);
+    return `<div class="acrow" style="--stc:${STCLR(c.status)}" onclick="openChap('${c.id}')">
+      ${c.image?`<img src="${c.image}" alt="">`:`<span class="acn">${n}</span>`}
+      <div class="aci"><b>${esc(c.title)}</b>${extract?`<span class="acsin">${esc(extract)}</span>`:''}</div>
+      ${actSel(c)}</div>`;
+  };
   const blocks=acts.map(a=>{
     const chs=b.chapters.filter(c=>c.actId===a.id);
     const w=chs.reduce((n,c)=>n+chapWords(c),0);
@@ -1832,6 +1849,7 @@ function renderChap(r){
       <button class="tb" id="tbInd" title="Sangría del párrafo actual">⇥</button>
       <select id="tbSp" title="Espaciado">${['compacto','normal','amplio'].map(x=>`<option value="${x}" ${ch.spacing===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select>
       <button class="tb" id="tbFind" title="Buscar y reemplazar">⌕</button>
+      <button class="tb" title="Escenas y panel del capítulo" onclick="openDrawer('scenes')">☰</button>
       <span class="ed-count" id="edCount"></span>
     </div>
     <div id="findBar" hidden>
@@ -1852,11 +1870,17 @@ function renderChap(r){
   const _padTop=parseFloat(getComputedStyle(view()).paddingTop)||0;
   $('.ed-tools').style.top=(-_padTop)+'px';
   updCount(ch);
+  maybeResume(ch);
   $('#chTitle').oninput=e=>{ch.title=e.target.value;ch.updated=Date.now();book.updated=Date.now();scheduleSave()};
   ed.addEventListener('input',()=>{
+    /* Si hay resaltados de búsqueda, se quitan al empezar a editar (conservando el
+       cursor) para que corregir no salte a otro sitio; la búsqueda se refresca
+       cuando vuelves a la casilla de buscar. */
+    if(ed.querySelector('mark.fmk')){const pos=caretSave();fbClear();caretRestore(pos)}
+    if(soloScene){for(const bl of edBlocks())if(!bl.classList.contains('sc-hide'))setBlockScene(bl,soloScene,true)}
+    if(edLastRange)ch.lastPos=edLastRange[0]; /* por dónde ibas, para reanudar */
     ch.body=cleanBody(ed);ch.updated=Date.now();book.updated=Date.now();scheduleSave();
     clearTimeout(edCountT);edCountT=setTimeout(()=>updCount(ch),350);
-    if(!$('#findBar').hidden)fbType();
   });
   for(const b of $$('.ed-tools .tb[data-c]')){
     b.addEventListener('mousedown',e=>e.preventDefault());
@@ -1897,6 +1921,22 @@ function renderChap(r){
   };
 }
 function updCount(ch){const el=$('#edCount');if(!el)return;const w=countWords(ch.body);el.textContent=`${fmtN(w)} palabras · ${readMins(w)} min`}
+/* Ofrece reanudar donde lo dejaste (último párrafo editado la sesión anterior). */
+function maybeResume(ch){
+  const p=ch.lastPos||0,blocks=edBlocks();
+  if(p<3||!blocks[p])return;
+  const b=document.createElement('button');
+  b.id='resumeBtn';b.className='btn btn-p';
+  b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom));z-index:52;box-shadow:0 12px 30px rgba(0,0,0,.5)';
+  b.textContent='↧ Seguir donde lo dejaste';
+  b.onclick=()=>{
+    blocks[p].scrollIntoView({block:'center'});
+    try{const r=document.createRange();r.selectNodeContents(blocks[p]);r.collapse(true);const sel=getSelection();sel.removeAllRanges();sel.addRange(r);$('#ed').focus()}catch(e){}
+    b.remove();
+  };
+  document.body.appendChild(b);
+  setTimeout(()=>{if(b.isConnected)b.remove()},10000);
+}
 /* Recuerda la última selección/cursor DENTRO del editor. En el móvil, al tocar
    un botón o abrir el panel, el cursor se pierde y `selBlockRange()` daba null:
    por eso la sangría y la asignación de escenas no hacían nada. Se guarda solo
@@ -1950,10 +1990,10 @@ function fbUnmark(){
 function fbClear(){fbUnmark();fbMarks=[];fbIdx=-1}
 function fbClose(){const fb=$('#findBar');if(fb)fb.hidden=true;fbClear()}
 function cleanBody(ed){
-  if(!ed.querySelector('mark.fmk')&&!ed.querySelector('mark.rvk')&&!ed.querySelector('.sc-dim'))return ed.innerHTML;
+  if(!ed.querySelector('mark.fmk')&&!ed.querySelector('mark.rvk')&&!ed.querySelector('.sc-dim')&&!ed.querySelector('.sc-hide'))return ed.innerHTML;
   const cl=ed.cloneNode(true);
   for(const mk of cl.querySelectorAll('mark.fmk,mark.rvk'))mk.replaceWith(document.createTextNode(mk.textContent));
-  for(const el of cl.querySelectorAll('.sc-dim')){el.classList.remove('sc-dim');if(!el.getAttribute('class'))el.removeAttribute('class')}
+  for(const el of cl.querySelectorAll('.sc-dim,.sc-hide')){el.classList.remove('sc-dim');el.classList.remove('sc-hide');if(!el.getAttribute('class'))el.removeAttribute('class')}
   cl.normalize();
   return cl.innerHTML;
 }
@@ -2278,8 +2318,8 @@ function openFocus(){
 let drawerTab='links';
 const expScenes=new Set();
 window._drawerClose=null;
-function openDrawer(){
-  drawerTab='links';
+function openDrawer(tab){
+  drawerTab=tab||'links';
   const bd=document.createElement('div');bd.id='backdrop';
   const dr=document.createElement('div');dr.id='drawer';
   document.body.append(bd,dr);
@@ -2387,7 +2427,7 @@ function drawScenes(ch){
     return `<div class="scene" data-did="${sc.id}"><div class="sh">
       <span class="dhandle">≡</span>
       <b onclick="toggleScene('${sc.id}')">${esc(sc.title)||'Escena'}</b>
-      ${sc.from!=null?`<button class="mini" title="Ver solo esta escena" onclick="sceneFocus('${sc.id}')">👁</button>`:''}
+      ${sc.from!=null?`<button class="mini" title="Escribir solo esta escena" onclick="sceneSolo('${sc.id}')">✍</button>`:''}
       <button class="mini" ${i===0?'disabled':''} onclick="mvScene(${i},-1)">↑</button>
       <button class="mini" ${i===ch.scenes.length-1?'disabled':''} onclick="mvScene(${i},1)">↓</button>
       <button class="mini" onclick="delScene('${sc.id}')">✕</button></div>
@@ -2396,7 +2436,8 @@ function drawScenes(ch){
         <textarea placeholder="Notas o texto de apoyo…" oninput="updScene('${sc.id}','note',this.value)">${esc(sc.note)}</textarea>
         <div class="row">
           <button class="btn btn-s" onclick="assignSceneSel('${sc.id}')">⌖ Asignar texto seleccionado</button>
-          ${sc.from!=null?`<button class="btn btn-s" onclick="sceneFocus('${sc.id}')">👁 Ver escena</button>
+          ${sc.from!=null?`<button class="btn btn-p btn-s" onclick="sceneSolo('${sc.id}')">✍ Escribir sola</button>
+          <button class="btn btn-s" onclick="sceneFocus('${sc.id}')">👁 En contexto</button>
           <button class="btn btn-s" onclick="clearSceneRange('${sc.id}')">Quitar tramo</button>`:''}
         </div>
         <p class="muted small" style="margin:0">${sc.from!=null
@@ -2413,6 +2454,29 @@ function mvScene(i,d){const a=chNow().scenes,j=i+d;if(j<0||j>=a.length)return;[a
 function delScene(id){const ch=chNow();ch.scenes=ch.scenes.filter(s=>s.id!==id);if($('#ed')){edBlocks().forEach(b=>setBlockScene(b,id,false));persistCh()}else scheduleSave();renderDrawer()}
 /* Tramos de escena dentro del capítulo */
 function edBlocks(){const ed=$('#ed');return ed?[...ed.children]:[]}
+/* Guarda/restaura el cursor por (bloque, nº de caracteres). Al quitar los
+   resaltados de búsqueda se recomponen los nodos de texto y el cursor saltaba
+   a otro sitio: con esto vuelve exactamente a donde estaba. */
+function edBlockOf(n){const ed=$('#ed');while(n&&n.parentNode!==ed)n=n.parentNode;return n}
+function caretSave(){
+  const ed=$('#ed'),sel=getSelection();
+  if(!ed||!sel.rangeCount)return null;
+  const r=sel.getRangeAt(0);if(!ed.contains(r.startContainer))return null;
+  const blk=edBlockOf(r.startContainer);const bi=edBlocks().indexOf(blk);if(bi<0)return null;
+  let off=0,done=false;
+  (function walk(n){if(done)return;if(n===r.startContainer){off+=r.startOffset;done=true;return}
+    if(n.nodeType===3)off+=n.nodeValue.length;else for(const c of n.childNodes){walk(c);if(done)return}})(blk);
+  return{bi,off};
+}
+function caretRestore(pos){
+  if(!pos)return;const blk=edBlocks()[pos.bi];if(!blk)return;
+  let rem=pos.off,tn=null,to=0;
+  (function walk(n){if(tn)return;if(n.nodeType===3){if(rem<=n.nodeValue.length){tn=n;to=rem;return}rem-=n.nodeValue.length}
+    else for(const c of n.childNodes){walk(c);if(tn)return}})(blk);
+  const sel=getSelection(),r=document.createRange();
+  if(tn)r.setStart(tn,to);else{r.selectNodeContents(blk);r.collapse(false)}
+  r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+}
 /* Envuelve texto suelto o líneas inline en párrafos <p>, para que cada párrafo
    sea un bloque real. Sin esto, en capítulos antiguos la primera línea (u otras
    sin envolver) no eran hijos-bloque de #ed: ni la sangría ni las escenas podían
@@ -2507,22 +2571,46 @@ function sceneBlocks(id,sc){
   }
   return m;
 }
+let soloScene=null;
+function sceneExitBtn(txt){
+  let x=document.getElementById('scExit');
+  if(!x){x=document.createElement('button');x.id='scExit';x.className='btn btn-p';document.body.appendChild(x)}
+  x.textContent=txt;x.onclick=sceneExit;
+}
+/* Resaltar la escena en su contexto (atenúa el resto). */
 function sceneFocus(id){
   const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
   if(window._drawerClose)closeOverlayUI(window._drawerClose);
-  const blocks=edBlocks();
+  sceneExit();
   const matched=sceneBlocks(id,sc);
   if(!matched.length){toast('Esta escena aún no tiene texto asignado');return}
   const set=new Set(matched);
-  blocks.forEach(b=>b.classList.toggle('sc-dim',!set.has(b)));
-  let x=document.getElementById('scExit');
-  if(!x){x=document.createElement('button');x.id='scExit';x.className='btn btn-p';document.body.appendChild(x)}
-  x.textContent=`✕ Ver todo el capítulo`;
-  x.onclick=sceneExit;
-  matched[0].scrollIntoView({block:'center'}); /* lleva a la primera palabra remarcada */
+  edBlocks().forEach(b=>b.classList.toggle('sc-dim',!set.has(b)));
+  sceneExitBtn('✕ Ver todo el capítulo');
+  matched[0].scrollIntoView({block:'center'});
+}
+/* Escribir SOLO esta escena: oculta el resto del capítulo. Lo que escribas se
+   queda en su sitio dentro del capítulo; al salir vuelve la vista general. */
+function sceneSolo(id){
+  const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
+  if(window._drawerClose)closeOverlayUI(window._drawerClose);
+  sceneExit();
+  const matched=sceneBlocks(id,sc);
+  if(!matched.length){toast('Esta escena aún no tiene texto asignado');return}
+  const set=new Set(matched);
+  edBlocks().forEach(b=>{
+    if(set.has(b)){setBlockScene(b,id,true);b.classList.remove('sc-hide')}
+    else b.classList.add('sc-hide');
+  });
+  soloScene=id;
+  sceneExitBtn('✕ Ver capítulo completo');
+  persistCh();
+  const ed=$('#ed');if(ed){ed.focus();const r=document.createRange();r.selectNodeContents(matched[0]);r.collapse(true);const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}
+  matched[0].scrollIntoView({block:'start'});
 }
 function sceneExit(){
-  for(const b of edBlocks())b.classList.remove('sc-dim');
+  soloScene=null;
+  for(const b of edBlocks()){b.classList.remove('sc-dim');b.classList.remove('sc-hide')}
   const x=document.getElementById('scExit');if(x)x.remove();
 }
 /* Info y versiones */
