@@ -253,6 +253,7 @@ h3{font-size:16.5px}
 #ed p[data-ind="0"],#ed div[data-ind="0"]{text-indent:0!important}
 #ed h3{font-size:1.25em;margin:1.2em 0 .6em;text-indent:0!important;text-align:center;letter-spacing:.04em}
 .ed-tools .tb svg{display:block;margin:auto;pointer-events:none}
+.ed-tools .tb[disabled]{opacity:.3;pointer-events:none}
 
 /* ── Lector ── */
 .ovl{position:fixed;inset:0;z-index:80;background:var(--paper);overflow-y:auto;padding:26px 18px 80px}
@@ -597,7 +598,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.6 · 2026-09-20';
+const APP_VERSION='3.6.1 · 2026-09-20';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1839,6 +1840,8 @@ function renderChap(r){
       <button class="iconb" title="Panel del capítulo" onclick="openDrawer()">☰</button>
     </div>
     <div class="ed-tools">
+      <button class="tb" id="tbUndo" title="Deshacer">↶</button>
+      <button class="tb" id="tbRedo" title="Rehacer">↷</button>
       <button class="tb bld" data-c="bold" title="Negrita">B</button>
       <button class="tb itl" data-c="italic" title="Cursiva">I</button>
       <button class="tb und" data-c="underline" title="Subrayado">U</button>
@@ -1870,6 +1873,7 @@ function renderChap(r){
   const _padTop=parseFloat(getComputedStyle(view()).paddingTop)||0;
   $('.ed-tools').style.top=(-_padTop)+'px';
   updCount(ch);
+  edHistReset();
   maybeResume(ch);
   $('#chTitle').oninput=e=>{ch.title=e.target.value;ch.updated=Date.now();book.updated=Date.now();scheduleSave()};
   ed.addEventListener('input',()=>{
@@ -1881,7 +1885,15 @@ function renderChap(r){
     if(edLastRange)ch.lastPos=edLastRange[0]; /* por dónde ibas, para reanudar */
     ch.body=cleanBody(ed);ch.updated=Date.now();book.updated=Date.now();scheduleSave();
     clearTimeout(edCountT);edCountT=setTimeout(()=>updCount(ch),350);
+    scheduleHist();
   });
+  /* deshacer/rehacer del teclado (Ctrl+Z, o el del teclado del móvil) usan nuestra pila */
+  ed.addEventListener('beforeinput',e=>{
+    if(e.inputType==='historyUndo'){e.preventDefault();edUndo()}
+    else if(e.inputType==='historyRedo'){e.preventDefault();edRedo()}
+  });
+  $('#tbUndo').onclick=()=>{ed.focus();edUndo()};
+  $('#tbRedo').onclick=()=>{ed.focus();edRedo()};
   for(const b of $$('.ed-tools .tb[data-c]')){
     b.addEventListener('mousedown',e=>e.preventDefault());
     b.onclick=()=>{ed.focus();document.execCommand(b.dataset.c);ch.body=cleanBody(ed);scheduleSave()};
@@ -1905,7 +1917,7 @@ function renderChap(r){
     const eff=b=>{const d=b.getAttribute('data-ind');return d==='1'?true:d==='0'?false:ed.classList.contains('ind')};
     const target=!eff(blocks[rg[0]]);
     for(let i=rg[0];i<=rg[1];i++){const b=blocks[i];if(b&&b.tagName!=='H3')b.setAttribute('data-ind',target?'1':'0')}
-    ch.body=cleanBody(ed);scheduleSave();
+    ch.body=cleanBody(ed);scheduleSave();pushHistory();
     tbInd.classList.toggle('on',target);
   };
   $('#tbSp').onchange=e=>{ch.spacing=e.target.value;ed.className=edClasses(ch);scheduleSave()};
@@ -2061,7 +2073,7 @@ function fbReplace(){
     if(m){n+=m.length;t.nodeValue=t.nodeValue.replace(re,rep)}
   }
   const ch=chNow();
-  if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();scheduleSave();updCount(ch)}
+  if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();scheduleSave();updCount(ch);pushHistory()}
   toast(n===1?'1 reemplazo':`${n} reemplazos`);
   fbUpdate(false);
 }
@@ -2477,6 +2489,53 @@ function caretRestore(pos){
   if(tn)r.setStart(tn,to);else{r.selectNodeContents(blk);r.collapse(false)}
   r.collapse(true);sel.removeAllRanges();sel.addRange(r);
 }
+/* ═══ Historial de deshacer/rehacer del editor ═══
+   Pila propia de instantáneas (HTML + cursor). El deshacer nativo del
+   contenteditable es poco fiable cuando la app modifica el texto por su cuenta
+   (normalizar, resaltados, escenas), así que llevamos el nuestro. */
+let edHist=[],edHistIdx=-1,edHistT=null,edHistApplying=false;
+function updUndoButtons(){
+  const u=$('#tbUndo'),r=$('#tbRedo');
+  if(u)u.disabled=edHistIdx<=0;
+  if(r)r.disabled=edHistIdx>=edHist.length-1;
+}
+function edHistReset(){
+  clearTimeout(edHistT);
+  const ed=$('#ed');
+  edHist=ed?[{html:cleanBody(ed),caret:null}]:[];
+  edHistIdx=edHist.length-1;updUndoButtons();
+}
+function pushHistory(){
+  clearTimeout(edHistT);
+  const ed=$('#ed');if(!ed||edHistApplying)return;
+  const html=cleanBody(ed);
+  if(edHist[edHistIdx]&&edHist[edHistIdx].html===html){return}
+  edHist=edHist.slice(0,edHistIdx+1);
+  edHist.push({html,caret:caretSave()});
+  if(edHist.length>60)edHist.shift();
+  edHistIdx=edHist.length-1;updUndoButtons();
+}
+function scheduleHist(){clearTimeout(edHistT);edHistT=setTimeout(pushHistory,650)}
+function applyHist(){
+  const st=edHist[edHistIdx],ed=$('#ed');if(!st||!ed)return;
+  edHistApplying=true;
+  ed.innerHTML=st.html;
+  caretRestore(st.caret);
+  /* si estás en modo «solo escena», vuelve a ocultar el resto tras restaurar */
+  if(soloScene){const ch2=chNow(),sc=ch2&&ch2.scenes.find(s=>s.id===soloScene),m=sceneBlocks(soloScene,sc);
+    if(m&&m.length){const set=new Set(m);edBlocks().forEach(b=>b.classList.toggle('sc-hide',!set.has(b)))}}
+  const ch=chNow();
+  if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();scheduleSave();updCount(ch);const cs=caretSave();if(cs)ch.lastPos=cs.bi}
+  edHistApplying=false;updUndoButtons();
+}
+function edUndo(){clearTimeout(edHistT);if(edHistIdx>0){pushPendingThenStep(-1)}}
+function edRedo(){clearTimeout(edHistT);if(edHistIdx<edHist.length-1){edHistIdx++;applyHist()}}
+function pushPendingThenStep(dir){
+  /* si hay cambios sin registrar (estabas escribiendo), guárdalos antes de deshacer */
+  const ed=$('#ed');
+  if(ed&&edHist[edHistIdx]&&cleanBody(ed)!==edHist[edHistIdx].html){pushHistory()}
+  if(dir<0&&edHistIdx>0){edHistIdx--;applyHist()}
+}
 /* Envuelve texto suelto o líneas inline en párrafos <p>, para que cada párrafo
    sea un bloque real. Sin esto, en capítulos antiguos la primera línea (u otras
    sin envolver) no eran hijos-bloque de #ed: ni la sangría ni las escenas podían
@@ -2543,7 +2602,7 @@ function setBlockScene(b,id,on){
   on?set.add(id):set.delete(id);
   set.size?b.setAttribute('data-scene',[...set].join(' ')):b.removeAttribute('data-scene');
 }
-function persistCh(){const ch=chNow(),ed=$('#ed');if(ch&&ed){ch.body=cleanBody(ed);scheduleSave()}}
+function persistCh(){const ch=chNow(),ed=$('#ed');if(ch&&ed){ch.body=cleanBody(ed);scheduleSave();if(typeof pushHistory==='function')pushHistory()}}
 function assignSceneSel(id){
   const ch=chNow(),sc=ch&&ch.scenes.find(s=>s.id===id);if(!sc)return;
   const r=edRange();
