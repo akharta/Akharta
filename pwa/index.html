@@ -598,7 +598,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.6.1 · 2026-09-20';
+const APP_VERSION='3.6.2 · 2026-09-20';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1840,8 +1840,8 @@ function renderChap(r){
       <button class="iconb" title="Panel del capítulo" onclick="openDrawer()">☰</button>
     </div>
     <div class="ed-tools">
-      <button class="tb" id="tbUndo" title="Deshacer">↶</button>
-      <button class="tb" id="tbRedo" title="Rehacer">↷</button>
+      <button class="tb" id="tbUndo" title="Deshacer"><svg width="18" height="16" viewBox="0 0 20 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5 L3 8.5 L7 12"/><path d="M3.4 8.5 H12 a4.2 4.2 0 0 1 0 8.4 H8"/></svg></button>
+      <button class="tb" id="tbRedo" title="Rehacer"><svg width="18" height="16" viewBox="0 0 20 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5 L17 8.5 L13 12"/><path d="M16.6 8.5 H8 a4.2 4.2 0 0 0 0 8.4 H12"/></svg></button>
       <button class="tb bld" data-c="bold" title="Negrita">B</button>
       <button class="tb itl" data-c="italic" title="Cursiva">I</button>
       <button class="tb und" data-c="underline" title="Subrayado">U</button>
