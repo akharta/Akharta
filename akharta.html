@@ -449,6 +449,8 @@ mark.fmk.cur{background:#C9A227;color:#171412}
 /* modo «solo esta escena»: oculta el resto del capítulo para escribir concentrado */
 .sc-hide{display:none!important}
 .chip .rl{font-style:italic;color:var(--muted);font-size:12px;margin-left:2px}
+.chip .chip-av{width:20px;height:20px;border-radius:50%;object-fit:cover;flex:none}
+.chip .chip-av.ini{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--serif);background:var(--surface);border:1px solid var(--line);color:var(--lapis)}
 .chapcard .ext i{color:color-mix(in srgb,var(--muted) 60%,var(--lapis) 40%)}
 
 /* ═══ v3: estados, vistas, escaleta, cronología, escenas ═══ */
@@ -603,7 +605,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.7 · 2026-09-20';
+const APP_VERSION='3.8 · 2026-10-01';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1485,11 +1487,9 @@ function fillMundo(){
     const chapOpts=s.books.map(bk=>bk.chapters.length?`<optgroup label="${esc(bk.name)}">${bk.chapters.map(cc=>`<option value="${cc.id}" ${r.mCap===cc.id?'selected':''}>${esc(cc.title)}</option>`).join('')}</optgroup>`:'').join('');
     const legC=c=>{
       const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(chp.title);
-      const rels=c.rels.map(id=>{const o=charById(s,id);return o&&o.name}).filter(Boolean);
+      const rels=c.rels.map(id=>{const o=charById(s,id);if(!o)return null;const lbl=(c.relLabels||{})[id];return o.name+(lbl?` (${lbl})`:'')}).filter(Boolean);
       const grps=s.groups.filter(g=>g.members.includes(c.id)).map(g=>g.name);
-      const lugs=(c.placeRels||[]).map(pr=>{const p=placeById(s,pr.id);return p&&p.name}).filter(Boolean);
-      const eggs=s.easterEggs.filter(e=>(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).map(e=>e.title);
-      return legHtml([['Cap.',caps],['Rel.',rels],['Grupos',grps],['Ubic.',lugs],['Secretos',eggs]]);
+      return legHtml([['Cap.',caps],['Rel.',rels],['Grupos',grps]]);
     };
     const body=state.meta.views.characters.mode==='list'
       ?list.map(c=>`<button class="lrow" style="--stc:${STCLR(c.status)}" onclick="openEnt('character','${c.id}')">
@@ -2806,8 +2806,34 @@ function renderEnt(r){
   view().innerHTML=`<div class="wrap-n stack">${html}</div>`;
 }
 /* — Personaje — */
+/* roles habituales en fantasía épica (el desplegable permite además uno propio) */
+const ROLES=['Protagonista','Antagonista','Deuteragonista','Mentor / Maestro','Aliado / Compañero','Interés amoroso','Villano','Secuaz / Esbirro','Rey / Reina','Príncipe / Princesa','Noble','Caballero','Mago / Hechicero','Sacerdote / Clérigo','Guerrero','Pícaro / Ladrón','Montaraz / Explorador','Bardo','Comerciante','Artesano / Plebeyo','Criatura / Bestia','Personaje secundario'];
+function normGender(v){v=(v||'').toString().trim();if(['Femenino','Masculino','Otros'].includes(v))return v;const l=v.toLowerCase();if(!l)return '';if(/fem|muj|♀/.test(l))return 'Femenino';if(/mas|homb|var|♂/.test(l))return 'Masculino';return 'Otros'}
+function genderSymbol(v){
+  const V={Femenino:['#E8679F','<circle cx="12" cy="8.5" r="5"/><path d="M12 13.5V22M8.5 18.5H15.5"/>'],
+    Masculino:['#4F93D6','<circle cx="10" cy="14" r="5"/><path d="M13.6 10.4 20 4M15 4H20V9"/>'],
+    Otros:['#9B7BD4','<circle cx="12" cy="12" r="4.3"/><path d="M12 16.3V22M9.4 19.3H14.6M14.2 8.4 18.8 3.8M15 3.8H18.8V7.6"/>']};
+  const g=V[v];if(!g)return '';
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${g[0]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${g[1]}</svg>`;
+}
+function genderField(cid,fid,val){
+  const cur=normGender(val);
+  return `<div class="field"><span class="lbl">Género</span>
+    <div class="row" style="gap:8px">
+      <select style="width:auto" onchange="updCharF('${cid}','${fid}',this.value);render()">
+        <option value="">—</option>
+        ${['Femenino','Masculino','Otros'].map(o=>`<option value="${o}" ${cur===o?'selected':''}>${o}</option>`).join('')}
+      </select>
+      ${genderSymbol(cur)}
+    </div></div>`;
+}
+async function setCharRole(id,v){
+  if(v==='__otro__'){const n=await askText('Rol del personaje',charById(curSaga(),id).role||'');if(n!==null)updChar(id,'role',n);render();return}
+  updChar(id,'role',v);render();
+}
 function entChar(s,r){
   const c=charById(s,r.id);if(!c)return null;
+  const cc=state.meta.catColors;
   const others=s.characters.filter(x=>x.id!==c.id);
   const freeRel=others.filter(x=>!c.rels.includes(x.id));
   const groups=s.groups.filter(g=>g.members.includes(c.id));
@@ -2822,25 +2848,28 @@ function entChar(s,r){
       </div></div>
     <div class="field"><span class="lbl">Estado</span><select style="width:auto" onchange="updChar('${c.id}','status',this.value)">${estadoOpts(c.status)}</select></div>
     <div class="field"><span class="lbl">Nombre</span><input value="${esc(c.name)}" oninput="updChar('${c.id}','name',this.value)"></div>
-    <div class="field"><span class="lbl">Rol</span><input value="${esc(c.role)}" placeholder="Protagonista, antagonista…" oninput="updChar('${c.id}','role',this.value)"></div>
-    ${state.meta.charFields.map(f=>`<div class="field"><span class="lbl">${esc(f.label)}</span>
-      <input value="${esc(c.fields[f.id]||'')}" oninput="updCharF('${c.id}','${f.id}',this.value)"></div>`).join('')}
+    <div class="field"><span class="lbl">Rol</span>
+      <select style="width:auto" onchange="setCharRole('${c.id}',this.value)">
+        <option value="">—</option>
+        ${ROLES.map(x=>`<option value="${x}" ${c.role===x?'selected':''}>${x}</option>`).join('')}
+        ${(c.role&&!ROLES.includes(c.role))?`<option value="${esc(c.role)}" selected>${esc(c.role)} (propio)</option>`:''}
+        <option value="__otro__">Otro…</option>
+      </select></div>
+    ${state.meta.charFields.map(f=>{
+      if(f.id==='f_gen'||/^g[eé]ner/i.test(f.label))return genderField(c.id,f.id,c.fields[f.id]||'');
+      return `<div class="field"><span class="lbl">${esc(f.label)}</span>
+      <input value="${esc(c.fields[f.id]||'')}" oninput="updCharF('${c.id}','${f.id}',this.value)"></div>`;
+    }).join('')}
     <div class="field"><span class="lbl">Descripción</span><textarea oninput="updChar('${c.id}','body',this.value)">${esc(c.body)}</textarea></div>
     <div class="field"><span class="lbl">Relaciones</span>
       <div class="chips" style="margin-bottom:8px">${c.rels.map(id=>{const o=charById(s,id);if(!o)return'';
         const lbl=(c.relLabels||{})[id];
-        return `<span class="chip click" onclick="openEnt('character','${o.id}')">${esc(o.name)}${lbl?`<i class="rl">${esc(lbl)}</i>`:''}<span class="x" title="Qué los une" onclick="event.stopPropagation();editRelLabel('${c.id}','${o.id}')">✎</span><span class="x" onclick="event.stopPropagation();rmRel('${c.id}','${o.id}')">✕</span></span>`}).join('')||'<span class="muted small">Sin relaciones.</span>'}</div>
+        const av=o.image?`<img class="chip-av" src="${o.image}" alt="">`:`<span class="chip-av ini">${esc((o.name||'?')[0])}</span>`;
+        return `<span class="chip click" onclick="openEnt('character','${o.id}')">${av}${esc(o.name)}${lbl?`<i class="rl">${esc(lbl)}</i>`:''}<span class="x" title="Qué los une" onclick="event.stopPropagation();editRelLabel('${c.id}','${o.id}')">✎</span><span class="x" onclick="event.stopPropagation();rmRel('${c.id}','${o.id}')">✕</span></span>`}).join('')||'<span class="muted small">Sin relaciones.</span>'}</div>
       ${freeRel.length?`<select onchange="addRel('${c.id}',this.value);this.value=''"><option value="">＋ Añadir relación…</option>${freeRel.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('')}</select>`:''}</div>
-    <div class="field"><span class="lbl">Vínculos con ubicaciones</span>
-      <div class="chips" style="margin-bottom:8px">${(c.placeRels||[]).map(pr=>{const p=placeById(s,pr.id);if(!p)return'';
-        return `<span class="chip click" onclick="openEnt('place','${p.id}')">${esc(p.name)}${pr.label?`<i class="rl">${esc(pr.label)}</i>`:''}<span class="x" title="Qué lo une" onclick="event.stopPropagation();editPlaceRel('${c.id}','${p.id}')">✎</span><span class="x" onclick="event.stopPropagation();rmPlaceRel('${c.id}','${p.id}')">✕</span></span>`}).join('')||'<span class="muted small">Sin vínculos.</span>'}</div>
-      ${freePlaces.length?`<select onchange="addPlaceRel('${c.id}',this.value);this.value=''"><option value="">＋ Vincular ubicación…</option>${freePlaces.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>`:''}</div>
     <div class="field"><span class="lbl">Grupos</span>
-      <div class="chips" style="margin-bottom:8px">${groups.map(g=>`<span class="chip click" onclick="openEnt('group','${g.id}')">${esc(g.name)}<span class="x" onclick="event.stopPropagation();charRmGroup('${c.id}','${g.id}')">✕</span></span>`).join('')||'<span class="muted small">No pertenece a ningún grupo.</span>'}</div>
+      <div class="chips" style="margin-bottom:8px">${groups.map(g=>`<span class="chip click" onclick="openEnt('group','${g.id}')"><span class="chip-av ini" style="background:${cc.groups};color:#fff;border:0">${esc((g.name||'?')[0])}</span>${esc(g.name)}<span class="x" onclick="event.stopPropagation();charRmGroup('${c.id}','${g.id}')">✕</span></span>`).join('')||'<span class="muted small">No pertenece a ningún grupo.</span>'}</div>
       ${s.groups.filter(g=>!g.members.includes(c.id)).length?`<select onchange="charAddGroup('${c.id}',this.value);this.value=''"><option value="">＋ Añadir a un grupo…</option>${s.groups.filter(g=>!g.members.includes(c.id)).map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>`:''}</div>
-    <div class="field"><span class="lbl">Easter eggs vinculados</span>
-      <div class="chips" style="margin-bottom:8px">${s.easterEggs.filter(e=>(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).map(e=>`<span class="chip click" onclick="openEnt('egg','${e.id}')">${esc(e.title)}<span class="x" onclick="event.stopPropagation();charRmEgg('${c.id}','${e.id}')">✕</span></span>`).join('')||'<span class="muted small">Ninguno.</span>'}</div>
-      ${s.easterEggs.filter(e=>!(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).length?`<select onchange="charAddEgg('${c.id}',this.value);this.value=''"><option value="">＋ Vincular un secreto…</option>${s.easterEggs.filter(e=>!(e.links||[]).some(l=>l.type==='characters'&&l.id===c.id)).map(e=>`<option value="${e.id}">${esc(e.title)}</option>`).join('')}</select>`:''}</div>
     <div class="field"><span class="lbl">Aparece en los capítulos (libro actual)</span>${bookChecklist('characters',c.id)}</div>
     <div class="row"><button class="btn" onclick="dupChar('${c.id}')">Duplicar</button>
       <button class="btn btn-d" onclick="delChar('${c.id}')">Eliminar</button></div>`;
