@@ -518,6 +518,11 @@ mark.fmk.cur{background:#C9A227;color:#171412}
 .leg{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:7px;text-align:left}
 .leg b{color:color-mix(in srgb,var(--muted) 50%,var(--lapis) 50%);font-weight:600}
 .leg>div{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.leg .leg-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;max-height:54px;overflow:hidden}
+.leg .lchip{display:inline-flex;align-items:center;gap:4px}
+.leg .la{width:17px;height:17px;border-radius:50%;object-fit:cover;flex:none}
+.leg .la.ini{display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-family:var(--serif);background:var(--surface);border:1px solid var(--line);color:var(--lapis)}
+.leg .lchip i{font-style:italic;color:var(--muted)}
 /* cronología jerárquica: año / mes y día / capítulo */
 .hito.h-anio{background:none;border:none;box-shadow:none;padding:10px 12px 2px}
 .hito.h-anio:hover{border:none;transform:none}
@@ -605,7 +610,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.8.1 · 2026-10-01';
+const APP_VERSION='3.8.2 · 2026-10-01';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1487,9 +1492,16 @@ function fillMundo(){
     const chapOpts=s.books.map(bk=>bk.chapters.length?`<optgroup label="${esc(bk.name)}">${bk.chapters.map(cc=>`<option value="${cc.id}" ${r.mCap===cc.id?'selected':''}>${esc(cc.title)}</option>`).join('')}</optgroup>`:'').join('');
     const legC=c=>{
       const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(chp.title);
-      const rels=c.rels.map(id=>{const o=charById(s,id);if(!o)return null;const lbl=(c.relLabels||{})[id];return o.name+(lbl?` (${lbl})`:'')}).filter(Boolean);
-      const grps=s.groups.filter(g=>g.members.includes(c.id)).map(g=>g.name);
-      return legHtml([['Cap.',caps],['Rel.',rels],['Grupos',grps]]);
+      const relHtml=c.rels.map(id=>{const o=charById(s,id);if(!o)return'';
+        const lbl=(c.relLabels||{})[id];
+        const av=o.image?`<img class="la" src="${o.image}" alt="">`:`<span class="la ini">${esc((o.name||'?')[0])}</span>`;
+        return `<span class="lchip">${av}${esc(o.name)}${lbl?`<i>(${esc(lbl)})</i>`:''}</span>`;}).filter(Boolean).join('');
+      const grpHtml=s.groups.filter(g=>g.members.includes(c.id)).map(g=>`<span class="lchip"><span class="la ini" style="background:${cc.groups};color:#fff;border:0">${esc((g.name||'?')[0])}</span>${esc(g.name)}</span>`).join('');
+      const rows=[];
+      if(caps.length)rows.push(`<div><b>Cap.:</b> ${esc(caps.join(', '))}</div>`);
+      if(relHtml)rows.push(`<div class="leg-wrap"><b>Rel.:</b> ${relHtml}</div>`);
+      if(grpHtml)rows.push(`<div class="leg-wrap"><b>Grupos:</b> ${grpHtml}</div>`);
+      return rows.length?`<div class="leg">${rows.join('')}</div>`:'<div class="leg">Sin vínculos aún</div>';
     };
     const body=state.meta.views.characters.mode==='list'
       ?list.map(c=>`<button class="lrow" style="--stc:${STCLR(c.status)}" onclick="openEnt('character','${c.id}')">
