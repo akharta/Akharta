@@ -605,7 +605,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.8 · 2026-10-01';
+const APP_VERSION='3.8.1 · 2026-10-01';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -1494,13 +1494,13 @@ function fillMundo(){
     const body=state.meta.views.characters.mode==='list'
       ?list.map(c=>`<button class="lrow" style="--stc:${STCLR(c.status)}" onclick="openEnt('character','${c.id}')">
           <span class="avatar sm">${c.image?`<img src="${c.image}" alt="">`:esc((c.name||'?')[0])}</span>
-          <div class="li"><b>${esc(c.name)}</b><div class="desc-1">${esc(c.body.slice(0,110))||esc(c.role)}</div>${legC(c)}</div>
+          <div class="li"><div class="row" style="gap:5px;flex-wrap:nowrap"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</b>${genderSymbol(charGender(c),17)}</div><div class="desc-1">${esc(c.body.slice(0,110))||esc(c.role)}</div>${legC(c)}</div>
         </button>`).join('')||'<p class="muted">Sin resultados con esos filtros.</p>'
       :`<div class="grid-w" style="${gridStyle('characters')}">${list.map(c=>{
         const f2=state.meta.charFields.slice(0,2).map(f=>c.fields[f.id]).filter(Boolean).join(' · ');
         return `<button class="entcard ez-${state.meta.views.characters.size||'m'}" style="--stc:${STCLR(c.status)};border-left-color:${cc.characters}" onclick="openEnt('character','${c.id}')">
           <div class="prow"><span class="avatar">${c.image?`<img src="${c.image}" alt="">`:esc((c.name||'?')[0])}</span>
-          <div style="min-width:0"><b>${esc(c.name)}</b>${f2?`<div class="small muted">${esc(f2)}</div>`:''}</div></div>
+          <div style="min-width:0"><div class="row" style="gap:5px;flex-wrap:nowrap"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</b>${genderSymbol(charGender(c),17)}</div>${f2?`<div class="small muted">${esc(f2)}</div>`:''}</div></div>
           <div class="desc">${esc(c.body.slice(0,110))}</div>
           ${legC(c)}
         </button>`}).join('')||'<p class="muted">Sin resultados con esos filtros.</p>'}</div>`;
@@ -1634,7 +1634,7 @@ function togglePlace(id){openPlaces.has(id)?openPlaces.delete(id):openPlaces.add
 function refocusSearch(scope){const i=$(scope+' input[type=search]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}}
 function mundoSearch(q){rTop().q=q;fillMundo();refocusSearch('#mundoBody')}
 function langSearch(q){rTop().q=q;render();refocusSearch('#view')}
-function addChar(){const s=curSaga(),c={id:uid(),name:'Sin nombre',role:'',body:'',image:null,rels:[],fields:{},relLabels:{},placeRels:[],status:'borrador',updated:Date.now()};s.characters.push(c);scheduleSave();openEnt('character',c.id)}
+function addChar(){const s=curSaga(),c={id:uid(),name:'Sin nombre',role:'Otros',body:'',image:null,rels:[],fields:{},relLabels:{},placeRels:[],status:'borrador',updated:Date.now()};s.characters.push(c);scheduleSave();openEnt('character',c.id)}
 function addPlace(parentId){const s=curSaga(),p={id:uid(),name:'Nueva ubicación',body:'',parentId,status:'borrador',updated:Date.now()};s.places.push(p);if(parentId)openPlaces.add(parentId);scheduleSave();openEnt('place',p.id)}
 function addGroup(){const s=curSaga(),g={id:uid(),name:'Nuevo grupo',body:'',members:[],chapterIds:[],status:'borrador',updated:Date.now()};s.groups.push(g);scheduleSave();openEnt('group',g.id)}
 function addEgg(){const s=curSaga(),e={id:uid(),title:'Nuevo secreto',body:'',chapterIds:[],status:'borrador',updated:Date.now()};s.easterEggs.push(e);scheduleSave();openEnt('egg',e.id)}
@@ -2806,15 +2806,18 @@ function renderEnt(r){
   view().innerHTML=`<div class="wrap-n stack">${html}</div>`;
 }
 /* — Personaje — */
-/* roles habituales en fantasía épica (el desplegable permite además uno propio) */
-const ROLES=['Protagonista','Antagonista','Deuteragonista','Mentor / Maestro','Aliado / Compañero','Interés amoroso','Villano','Secuaz / Esbirro','Rey / Reina','Príncipe / Princesa','Noble','Caballero','Mago / Hechicero','Sacerdote / Clérigo','Guerrero','Pícaro / Ladrón','Montaraz / Explorador','Bardo','Comerciante','Artesano / Plebeyo','Criatura / Bestia','Personaje secundario'];
+/* roles de la saga (por defecto «Otros») */
+const ROLES=['Protagonista','Antagonista','Secundario','Villano','Noble','Caballero','Soldado','Señor de una de las Doce','Otros'];
+function genderFieldId(){const f=state.meta.charFields.find(f=>f.id==='f_gen'||/^g[eé]ner/i.test(f.label));return f?f.id:null}
+function charGender(c){const id=genderFieldId();return id?normGender(c.fields[id]):''}
 function normGender(v){v=(v||'').toString().trim();if(['Femenino','Masculino','Otros'].includes(v))return v;const l=v.toLowerCase();if(!l)return '';if(/fem|muj|♀/.test(l))return 'Femenino';if(/mas|homb|var|♂/.test(l))return 'Masculino';return 'Otros'}
 function genderSymbol(v){
   const V={Femenino:['#E8679F','<circle cx="12" cy="8.5" r="5"/><path d="M12 13.5V22M8.5 18.5H15.5"/>'],
     Masculino:['#4F93D6','<circle cx="10" cy="14" r="5"/><path d="M13.6 10.4 20 4M15 4H20V9"/>'],
     Otros:['#9B7BD4','<circle cx="12" cy="12" r="4.3"/><path d="M12 16.3V22M9.4 19.3H14.6M14.2 8.4 18.8 3.8M15 3.8H18.8V7.6"/>']};
   const g=V[v];if(!g)return '';
-  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${g[0]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${g[1]}</svg>`;
+  const sz=arguments[1]||20;
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="${g[0]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${g[1]}</svg>`;
 }
 function genderField(cid,fid,val){
   const cur=normGender(val);
@@ -2827,10 +2830,7 @@ function genderField(cid,fid,val){
       ${genderSymbol(cur)}
     </div></div>`;
 }
-async function setCharRole(id,v){
-  if(v==='__otro__'){const n=await askText('Rol del personaje',charById(curSaga(),id).role||'');if(n!==null)updChar(id,'role',n);render();return}
-  updChar(id,'role',v);render();
-}
+function setCharRole(id,v){updChar(id,'role',v);render()}
 function entChar(s,r){
   const c=charById(s,r.id);if(!c)return null;
   const cc=state.meta.catColors;
@@ -2850,10 +2850,8 @@ function entChar(s,r){
     <div class="field"><span class="lbl">Nombre</span><input value="${esc(c.name)}" oninput="updChar('${c.id}','name',this.value)"></div>
     <div class="field"><span class="lbl">Rol</span>
       <select style="width:auto" onchange="setCharRole('${c.id}',this.value)">
-        <option value="">—</option>
-        ${ROLES.map(x=>`<option value="${x}" ${c.role===x?'selected':''}>${x}</option>`).join('')}
+        ${ROLES.map(x=>`<option value="${x}" ${(c.role||'Otros')===x?'selected':''}>${x}</option>`).join('')}
         ${(c.role&&!ROLES.includes(c.role))?`<option value="${esc(c.role)}" selected>${esc(c.role)} (propio)</option>`:''}
-        <option value="__otro__">Otro…</option>
       </select></div>
     ${state.meta.charFields.map(f=>{
       if(f.id==='f_gen'||/^g[eé]ner/i.test(f.label))return genderField(c.id,f.id,c.fields[f.id]||'');
