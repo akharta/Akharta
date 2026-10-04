@@ -419,6 +419,10 @@ body{background:transparent}
 #expo .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:min(580px,100%);max-height:90vh;display:flex;flex-direction:column}
 #expo textarea{flex:1;min-height:180px;max-height:52vh;resize:none;font-family:var(--serif);font-size:14px;line-height:1.5;margin:8px 0 12px}
 #expo .bts{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+#charpick{position:fixed;inset:0;z-index:106;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#charpick .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;width:min(460px,100%);max-height:90vh;display:flex;flex-direction:column}
+#charpick .check-list{max-height:48vh;margin:0 0 12px}
+#charpick .bts{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 
 /* reordenar arrastrando */
 .dhandle{cursor:grab;color:var(--muted);font-size:17px;padding:4px 8px;touch-action:none;user-select:none;flex:none}
@@ -517,7 +521,7 @@ mark.fmk.cur{background:#C9A227;color:#171412}
 /* leyendas completas en tarjetas */
 .leg{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:7px;text-align:left}
 .leg b{color:color-mix(in srgb,var(--muted) 50%,var(--lapis) 50%);font-weight:600}
-.leg>div{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.leg>div{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}
 .leg .leg-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:4px 7px;max-height:54px;overflow:hidden}
 .leg .lchip{display:inline-flex;align-items:center;gap:4px}
 .leg .la{width:17px;height:17px;border-radius:50%;object-fit:cover;flex:none}
@@ -610,7 +614,7 @@ const STCLR=s=>(STATUS[s]||STATUS.borrador)[1];
 const estadoOpts=cur=>Object.entries(STATUS).map(([k,[l]])=>`<option value="${k}" ${cur===k?'selected':''}>${l}</option>`).join('');
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='3.8.2 · 2026-10-01';
+const APP_VERSION='3.9 · 2026-10-04';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -835,6 +839,7 @@ function findChap(saga,id){
   for(const b of saga.books){const c=b.chapters.find(c=>c.id===id);if(c)return{book:b,ch:c}}
   return null;
 }
+function chapNumOf(saga,id){const f=findChap(saga,id);return f?f.book.chapters.indexOf(f.ch)+1:0}
 const chapWords=ch=>countWords(ch.body);
 const bookWords=b=>b.chapters.reduce((n,c)=>n+chapWords(c),0);
 const charById=(s,id)=>s.characters.find(c=>c.id===id);
@@ -1390,7 +1395,7 @@ function fillCaps(){
       const w=chapWords(c);
       return `<button class="lrow" style="--stc:${STCLR(c.status)}" onclick="openChap('${c.id}')">
         ${c.image?`<img class="thumb" src="${c.image}" alt="">`:''}
-        <div class="li"><b>Nº ${i+1} · ${esc(c.title)}</b>
+        <div class="li"><b>CAP ${i+1} · ${esc(c.title)}</b>
         <div class="desc-1">${esc(c.sinopsis||plain(c.body).trim().slice(0,110))||'Sin texto todavía'}</div></div>
         <span class="small muted num" style="flex:none">${fmtN(w)} pal. · ≈${chapPages(c)} pág.</span>
       </button>`}).join('')||'<p class="muted">Sin resultados con esos filtros.</p>';
@@ -1403,13 +1408,13 @@ function fillCaps(){
       <span class="cimg-s">${c.image?`<img src="${c.image}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:esc(String(i+1))}</span>
       <div class="ci"><b>${esc(c.title)}</b>
       <div class="meta"><span class="sdot" style="background:${STATUS[c.status][1]}"></span>
-        <span class="num">Nº ${i+1} · ${fmtN(w)} pal. · ≈${pg} pág.</span></div></div>
+        <span class="num">CAP ${i+1} · ${fmtN(w)} pal. · ≈${pg} pág.</span></div></div>
     </button>`;
     return `<button class="chapcard ${size==='l'?'sz-l':''}" style="--stc:${STCLR(c.status)}" onclick="openChap('${c.id}')">
       ${c.image?`<div class="img"><img src="${c.image}" alt=""></div>`:''}
       <div class="ci">
         <div class="meta"><span class="sdot" style="background:${STATUS[c.status][1]}"></span>
-          <span class="num">Nº ${i+1} · ${fmtN(w)} pal. · ${readMins(w)} min · ≈${pg} pág.${c.scenes.length?` · ${c.scenes.length} esc.`:''}</span></div>
+          <span class="num">CAP ${i+1} · ${fmtN(w)} pal. · ${readMins(w)} min · ≈${pg} pág.${c.scenes.length?` · ${c.scenes.length} esc.`:''}</span></div>
         <b>${esc(c.title)}</b>
         <div class="ext">${c.sinopsis?`<i>${esc(c.sinopsis)}</i>`:(esc(plain(c.body).trim().slice(0,size==='l'?320:150))||'<i>Sin texto todavía</i>')}</div>
         ${tags.length?`<div class="chips">${tags.map(t=>`<span class="chip"><span class="cdot" style="background:${t.color}"></span>${esc(t.name)}</span>`).join('')}</div>`:''}
@@ -1459,11 +1464,24 @@ function renderMundo(r,s,b){
     if(i>=0&&i<ids.length)setSub(ids[i]);
   },{passive:true});
 }
-function setSub(sub){const r=rTop();r.sub=sub;r.q='';r.mSort='';r.mEst='';r.mGrp='';r.mCap='';render()}
+function setSub(sub){const r=rTop();r.sub=sub;r.q='';r.mSort='';r.mEst='';r.mGrp='';r.mCap='';r.mField='';r.mFieldVal='';render()}
 function mSort(v){rTop().mSort=v;fillMundo()}
 function mEst(v){rTop().mEst=v;fillMundo()}
 function mGrp(v){rTop().mGrp=v;fillMundo()}
 function mCap(v){rTop().mCap=v;fillMundo()}
+function mField(v){const r=rTop();r.mField=v;r.mFieldVal='';fillMundo()}
+function mFieldVal(v){rTop().mFieldVal=v;fillMundo();const i=$('#fldVal');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}}
+function filteredChars(s,r){
+  const q=(r.q||'').toLowerCase();
+  let list=s.characters.filter(c=>!q||c.name.toLowerCase().includes(q)||c.body.toLowerCase().includes(q));
+  if(r.mEst)list=list.filter(c=>c.status===r.mEst);
+  if(r.mGrp){const g=s.groups.find(g=>g.id===r.mGrp);list=list.filter(c=>g&&g.members.includes(c.id))}
+  if(r.mCap){const f=findChap(s,r.mCap);list=list.filter(c=>f&&f.ch.links.some(l=>l.type==='characters'&&l.id===c.id))}
+  if(r.mField&&(r.mFieldVal||'').trim()){const needle=r.mFieldVal.toLowerCase();
+    list=list.filter(c=>{const v=r.mField==='role'?(c.role||'Otros'):(c.fields[r.mField]||'');return (v||'').toString().toLowerCase().includes(needle)})}
+  if(r.mSort)applySort(list,r.mSort,c=>c.name);
+  return list;
+}
 function fillMundo(){
   const r=rTop(),s=curSaga(),el=$('#mundoBody'),q=(r.q||'').toLowerCase();
   const cc=state.meta.catColors;
@@ -1484,12 +1502,13 @@ function fillMundo(){
       });
       return;
     }
-    let list=s.characters.filter(c=>!q||c.name.toLowerCase().includes(q)||c.body.toLowerCase().includes(q));
-    if(r.mEst)list=list.filter(c=>c.status===r.mEst);
-    if(r.mGrp){const g=s.groups.find(g=>g.id===r.mGrp);list=list.filter(c=>g&&g.members.includes(c.id))}
-    if(r.mCap){const f=findChap(s,r.mCap);list=list.filter(c=>f&&f.ch.links.some(l=>l.type==='characters'&&l.id===c.id))}
-    if(r.mSort)applySort(list,r.mSort,c=>c.name);
+    let list=filteredChars(s,r);
     const chapOpts=s.books.map(bk=>bk.chapters.length?`<optgroup label="${esc(bk.name)}">${bk.chapters.map(cc=>`<option value="${cc.id}" ${r.mCap===cc.id?'selected':''}>${esc(cc.title)}</option>`).join('')}</optgroup>`:'').join('');
+    const fieldSel=`<select title="Filtrar por un campo de la ficha" onchange="mField(this.value)"><option value="">Campo: ninguno</option>${[['role','Rol'],...state.meta.charFields.map(f=>[f.id,f.label])].map(([id,lb])=>`<option value="${id}" ${r.mField===id?'selected':''}>${esc(lb)}</option>`).join('')}</select>`;
+    let valCtl='';
+    if(r.mField==='role')valCtl=`<select title="Valor" onchange="mFieldVal(this.value)"><option value="">Rol: cualquiera</option>${ROLES.map(x=>`<option value="${x}" ${r.mFieldVal===x?'selected':''}>${x}</option>`).join('')}</select>`;
+    else if(r.mField&&r.mField===genderFieldId())valCtl=`<select title="Valor" onchange="mFieldVal(this.value)"><option value="">Género: cualquiera</option>${['Femenino','Masculino','Otros'].map(x=>`<option value="${x}" ${r.mFieldVal===x?'selected':''}>${x}</option>`).join('')}</select>`;
+    else if(r.mField)valCtl=`<input id="fldVal" type="search" placeholder="Valor…" value="${esc(r.mFieldVal||'')}" oninput="mFieldVal(this.value)" style="min-width:110px">`;
     const legC=c=>{
       const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(chp.title);
       const relHtml=c.rels.map(id=>{const o=charById(s,id);if(!o)return'';
@@ -1519,12 +1538,14 @@ function fillMundo(){
     el.innerHTML=`<div class="spread" style="margin-bottom:12px"><h2>Personajes <span class="muted small num">${s.characters.length}</span></h2>
       <div class="row">
       <button class="iconb" title="Reordenar" onclick="rTop().reorderChars=true;fillMundo()">⇅</button>
+      ${s.characters.length?`<button class="btn btn-s" title="Exportar fichas" onclick="exportCharsDialog()">📤 Exportar</button>`:''}
       <button class="btn btn-p btn-s" onclick="addChar()">＋ Personaje</button></div></div>${search('Buscar personaje…')}
       <div class="ctlrow">
         ${sortSel(r.mSort||'','mSort')}
         ${estadoFilterSel(r.mEst||'','mEst')}
         ${s.groups.length?`<select title="Filtrar por grupo" onchange="mGrp(this.value)"><option value="">Grupo: todos</option>${s.groups.map(g=>`<option value="${g.id}" ${r.mGrp===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select>`:''}
         ${chapOpts?`<select title="Aparece en el capítulo" onchange="mCap(this.value)"><option value="">Capítulo: todos</option>${chapOpts}</select>`:''}
+        ${fieldSel}${valCtl}
         ${viewCtl('characters',['grid','list'])}
       </div>${body}`;
   }
@@ -1687,7 +1708,7 @@ function renderTl(r){
       <button class="btn btn-p btn-s" onclick="addHito('${tl.id}')">＋ Hito</button></div>
     <p class="muted small" style="margin-bottom:10px" ${hitos.length<2?'hidden':''}>Arrastra ≡ para reordenar los hitos.</p>
     <div class="tl-axis" id="tlList">${hitos.map(h=>{
-      const chips=h.chapterIds.map(id=>{const f=findChap(s,id);return f?`<span class="chip click" onclick="event.stopPropagation();openChapAny('${id}')">${esc(f.ch.title)}</span>`:''}).join('');
+      const chips=h.chapterIds.map(id=>{const f=findChap(s,id);return f?`<span class="chip click" onclick="event.stopPropagation();openChapAny('${id}')">CAP ${f.book.chapters.indexOf(f.ch)+1} · ${esc(f.ch.title)}</span>`:''}).join('');
       const[kl,kc]=HKINDS[h.kind]||HKINDS.mes;
       return `<div class="hito h-${h.kind}" data-did="${h.id}" style="--kc:${kc}" onclick="openEnt('hito','${h.id}','${tl.id}')">
         <span class="dhandle" onclick="event.stopPropagation()">≡</span>
@@ -2380,15 +2401,17 @@ function renderDrawer(){
 function drawLinks(s,book,ch){
   const cc=state.meta.catColors;
   const kindOf={characters:'character',places:'place',groups:'group',eggs:'egg'};
-  const chip=(type,id,name,color)=>`<span class="chip click" onclick="openEntFromDrawer('${kindOf[type]}','${id}')">
-    <span class="cdot" style="background:${color}"></span>${esc(name)}
+  const avChar=c=>c.image?`<img class="chip-av" src="${c.image}" alt="">`:`<span class="chip-av ini">${esc((c.name||'?')[0])}</span>`;
+  const avGrp=g=>`<span class="chip-av ini" style="background:${cc.groups};color:#fff;border:0">${esc((g.name||'?')[0])}</span>`;
+  const chip=(type,id,name,color,av)=>`<span class="chip click" onclick="openEntFromDrawer('${kindOf[type]}','${id}')">
+    ${av||`<span class="cdot" style="background:${color}"></span>`}${esc(name)}
     <span class="x" onclick="event.stopPropagation();drawerRm('${type}','${id}')">✕</span></span>`;
   const linked=[];
   for(const l of ch.links){
-    if(l.type==='characters'){const c=charById(s,l.id);if(c)linked.push(chip('characters',c.id,c.name,cc.characters))}
+    if(l.type==='characters'){const c=charById(s,l.id);if(c)linked.push(chip('characters',c.id,c.name,cc.characters,avChar(c)))}
     else if(l.type==='places'){const p=placeById(s,l.id);if(p)linked.push(chip('places',p.id,p.name,cc.places))}
   }
-  for(const g of s.groups)if(g.chapterIds.includes(ch.id))linked.push(chip('groups',g.id,g.name,cc.groups));
+  for(const g of s.groups)if(g.chapterIds.includes(ch.id))linked.push(chip('groups',g.id,g.name,cc.groups,avGrp(g)));
   for(const e of s.easterEggs)if(e.chapterIds.includes(ch.id))linked.push(chip('eggs',e.id,e.title,cc.easterEggs));
   const opt=(type,arr,label,taken,nm)=>{
     const free=arr.filter(x=>!taken(x));
@@ -2738,6 +2761,67 @@ function showExport(title,text,filename){
     catch(e){ta.focus();ta.select();try{document.execCommand('copy');toast('Copiado')}catch(_){toast('Mantén pulsado el texto y cópialo a mano')}}
   };
 }
+/* — Exportar fichas de personaje — */
+function charCardText(s,c){
+  const L=[];
+  L.push(`### ${c.name||'Sin nombre'}`);
+  L.push(`Rol: ${c.role||'Otros'}`);
+  const gid=genderFieldId(),g=charGender(c);if(g)L.push(`Género: ${g}`);
+  for(const f of state.meta.charFields){
+    if(f.id===gid)continue;
+    const v=(c.fields[f.id]||'').toString().trim();if(v)L.push(`${f.label}: ${v}`);
+  }
+  L.push(`Estado: ${(STATUS[c.status]||[c.status])[0]}`);
+  if((c.body||'').trim())L.push(`\nDescripción:\n${c.body.trim()}`);
+  const rels=c.rels.map(id=>{const o=charById(s,id);if(!o)return'';const lbl=(c.relLabels||{})[id];return `- ${o.name}${lbl?` (${lbl})`:''}`}).filter(Boolean);
+  if(rels.length)L.push(`\nRelaciones:\n${rels.join('\n')}`);
+  const grps=s.groups.filter(gr=>gr.members.includes(c.id)).map(gr=>gr.name);
+  if(grps.length)L.push(`\nGrupos: ${grps.join(', ')}`);
+  const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(chp.title);
+  if(caps.length)L.push(`\nAparece en: ${caps.join(', ')}`);
+  return L.join('\n');
+}
+function charsExportText(s,list,scope){
+  const head=`Fichas de personajes — Akharta\n`+
+    `Saga: ${s?s.name:''}${scope?` · ${scope}`:''}\n`+
+    `${list.length} ficha(s)\n\n`+
+    `Te paso estas fichas de personajes de mi saga para que las tengas como contexto del proyecto. No necesitas responder nada; solo guárdalas como referencia.\n\n`+
+    `— FICHAS —\n\n`;
+  return head+list.map(c=>charCardText(s,c)).join('\n\n──────────\n\n');
+}
+function exportChar(id){
+  const s=curSaga(),c=charById(s,id);if(!c)return;
+  showExport('Exportar ficha de personaje',charsExportText(s,[c],`Personaje: ${c.name}`),`personaje-${slug(c.name)}-${today()}.txt`);
+}
+function exportCharsDialog(){
+  const s=curSaga(),r=rTop();
+  const pre=new Set(filteredChars(s,r).map(c=>c.id));
+  const ov=document.createElement('div');ov.id='charpick';
+  ov.innerHTML=`<div class="box"><h3>Exportar personajes</h3>
+    <p class="small muted" style="margin:4px 0 10px">Marca los que quieras exportar. Por defecto van marcados los del filtro actual.</p>
+    <div class="row" style="margin-bottom:8px;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-s" id="cpAll">Todos</button>
+      <button class="btn btn-s" id="cpNone">Ninguno</button>
+      <button class="btn btn-s" id="cpFilt">Solo el filtro actual</button></div>
+    <div class="check-list" id="cpList">${s.characters.map(c=>`<label><input type="checkbox" value="${c.id}" ${pre.has(c.id)?'checked':''}><span>${esc(c.name)}${c.role?` — ${esc(c.role)}`:''}</span></label>`).join('')||'<p class="muted small">No hay personajes.</p>'}</div>
+    <div class="bts"><button class="btn btn-p" id="cpGo">Exportar</button><button class="btn" id="cpClose">Cerrar</button></div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();openOverlay(close);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeOverlayUI(close)});
+  const boxes=()=>[...ov.querySelectorAll('#cpList input')];
+  ov.querySelector('#cpAll').onclick=()=>boxes().forEach(b=>b.checked=true);
+  ov.querySelector('#cpNone').onclick=()=>boxes().forEach(b=>b.checked=false);
+  ov.querySelector('#cpFilt').onclick=()=>{const f=new Set(filteredChars(s,rTop()).map(c=>c.id));boxes().forEach(b=>b.checked=f.has(b.value))};
+  ov.querySelector('#cpClose').onclick=()=>closeOverlayUI(close);
+  ov.querySelector('#cpGo').onclick=()=>{
+    const ids=boxes().filter(b=>b.checked).map(b=>b.value);
+    if(!ids.length){toast('No has marcado ningún personaje');return}
+    const list=s.characters.filter(c=>ids.includes(c.id));
+    const scope=ids.length===s.characters.length?'Todos los personajes':`${list.length} personaje(s) seleccionados`;
+    closeOverlayUI(close);
+    showExport('Exportar personajes',charsExportText(s,list,scope),`personajes-${slug(s.name)}-${today()}.txt`);
+  };
+}
 /* Info y versiones */
 function drawInfo(ch){
   const w=countWords(ch.body);
@@ -2881,7 +2965,8 @@ function entChar(s,r){
       <div class="chips" style="margin-bottom:8px">${groups.map(g=>`<span class="chip click" onclick="openEnt('group','${g.id}')"><span class="chip-av ini" style="background:${cc.groups};color:#fff;border:0">${esc((g.name||'?')[0])}</span>${esc(g.name)}<span class="x" onclick="event.stopPropagation();charRmGroup('${c.id}','${g.id}')">✕</span></span>`).join('')||'<span class="muted small">No pertenece a ningún grupo.</span>'}</div>
       ${s.groups.filter(g=>!g.members.includes(c.id)).length?`<select onchange="charAddGroup('${c.id}',this.value);this.value=''"><option value="">＋ Añadir a un grupo…</option>${s.groups.filter(g=>!g.members.includes(c.id)).map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>`:''}</div>
     <div class="field"><span class="lbl">Aparece en los capítulos (libro actual)</span>${bookChecklist('characters',c.id)}</div>
-    <div class="row"><button class="btn" onclick="dupChar('${c.id}')">Duplicar</button>
+    <div class="row"><button class="btn" onclick="exportChar('${c.id}')">📤 Exportar ficha</button>
+      <button class="btn" onclick="dupChar('${c.id}')">Duplicar</button>
       <button class="btn btn-d" onclick="delChar('${c.id}')">Eliminar</button></div>`;
 }
 function updChar(id,k,v){const c=charById(curSaga(),id);if(c){c[k]=v;c.updated=Date.now();scheduleSave();if(k==='status')render()}}
