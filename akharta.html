@@ -650,7 +650,7 @@ function weekHas3(){const by={};for(const k of (state.meta.writeDays||[])){const
 function isoWeek(d){d=new Date(d);d.setHours(0,0,0,0);d.setDate(d.getDate()+4-(d.getDay()||7));const ys=new Date(d.getFullYear(),0,1);return Math.ceil(((d-ys)/864e5+1)/7)}
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='4.0.1 · 2026-10-24';
+const APP_VERSION='4.0.2 · 2026-10-24';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -2509,14 +2509,15 @@ function renderDrawer(){
 function drawLinks(s,book,ch){
   const cc=state.meta.catColors;
   const kindOf={characters:'character',places:'place',groups:'group',eggs:'egg'};
-  const avChar=c=>c.image?`<img class="chip-av" src="${c.image}" alt="">`:`<span class="chip-av ini">${esc((c.name||'?')[0])}</span>`;
+  const avChar=c=>{const col=CHARCLR(c.role);const ring=`box-shadow:0 0 0 2px ${col};border-color:${col}`;
+    return c.image?`<img class="chip-av" style="${ring}" src="${c.image}" alt="">`:`<span class="chip-av ini" style="${ring};color:${col}">${esc((c.name||'?')[0])}</span>`};
   const avGrp=g=>`<span class="chip-av ini" style="background:${cc.groups};color:#fff;border:0">${esc((g.name||'?')[0])}</span>`;
   const chip=(type,id,name,color,av)=>`<span class="chip click" onclick="openEntFromDrawer('${kindOf[type]}','${id}')">
     ${av||`<span class="cdot" style="background:${color}"></span>`}${esc(name)}
     <span class="x" onclick="event.stopPropagation();drawerRm('${type}','${id}')">✕</span></span>`;
   const linked=[];
   for(const l of ch.links){
-    if(l.type==='characters'){const c=charById(s,l.id);if(c)linked.push(chip('characters',c.id,c.name,cc.characters,`<span class="cdot" style="background:${CHARCLR(c.role)}"></span>${avChar(c)}`))}
+    if(l.type==='characters'){const c=charById(s,l.id);if(c)linked.push(chip('characters',c.id,c.name,cc.characters,avChar(c)))}
     else if(l.type==='places'){const p=placeById(s,l.id);if(p)linked.push(chip('places',p.id,p.name,cc.places))}
   }
   for(const g of s.groups)if(g.chapterIds.includes(ch.id))linked.push(chip('groups',g.id,g.name,cc.groups,avGrp(g)));
