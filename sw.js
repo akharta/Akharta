@@ -1,4 +1,4 @@
-const C='akharta-3e68393d16d9';
+const C='akharta-b727d71921cf';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
