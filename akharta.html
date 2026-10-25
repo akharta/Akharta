@@ -600,11 +600,19 @@ mark.rvk.cur,.rv-blk{background:rgba(224,122,107,.4)}
 #ed .sc-dim{opacity:.2;filter:blur(1.2px);transition:opacity .25s}
 #scExit,#spExit{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 12px 30px rgba(0,0,0,.5)}
 @media (max-width:820px){#scExit,#spExit{bottom:calc(100px + env(safe-area-inset-bottom))}}
-.edsplit{display:flex;gap:10px;align-items:flex-start}
-.edsplit .cant-pane,.edsplit .fin-pane{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+.edsplit{display:flex;gap:10px;align-items:stretch;max-width:100%;overflow:hidden}
+.edsplit .cant-pane,.edsplit .fin-pane{flex:1 1 0;width:50%;max-width:50%;min-width:0;display:flex;flex-direction:column}
+.edsplit .cant-h{flex:none}
+.edsplit #ed,.edsplit #cantera{flex:1 1 auto;min-height:0;height:62vh;max-height:62vh;overflow-y:auto;overflow-x:hidden;overflow-wrap:break-word;word-break:break-word;padding-bottom:24px;-webkit-overflow-scrolling:touch}
 .edsplit #ed{width:100%}
 .cant-h{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;padding:0 2px;font-weight:600}
-#cantera{min-height:55vh;border:1px dashed var(--line);border-radius:10px;padding:12px;background:var(--surface);font-family:var(--serif);line-height:1.6;outline:none;white-space:pre-wrap}
+#cantera{min-height:55vh;border:1px dashed var(--line);border-radius:10px;padding:12px;background:var(--surface);font-family:var(--serif);line-height:1.6;outline:none;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word}
+.mini-stats{display:flex;flex-wrap:wrap;gap:8px}
+.mini{flex:1 1 56px;min-width:56px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 6px;text-align:center}
+.mini b{display:block;font-size:17px;font-family:var(--serif);font-variant-numeric:tabular-nums;line-height:1.1}
+.mini span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.mini-pct{cursor:pointer;border-color:color-mix(in srgb,var(--lapis) 55%,var(--line))}
+.mini-pct b{color:color-mix(in srgb,var(--text) 60%,var(--lapis) 40%)}
 </style>
 <script>
 'use strict';
@@ -648,9 +656,16 @@ function currentStreak(){const set=new Set(state.meta.writeDays||[]);let n=0,d=n
   while(set.has(dayKey(d))){n++;d=new Date(d.getTime()-864e5)}return n}
 function weekHas3(){const by={};for(const k of (state.meta.writeDays||[])){const d=new Date(k+'T00:00:00');const y=d.getFullYear(),w=isoWeek(d);const key=y+'-'+w;by[key]=(by[key]||0)+1;if(by[key]>=3)return true}return false}
 function isoWeek(d){d=new Date(d);d.setHours(0,0,0,0);d.setDate(d.getDate()+4-(d.getDay()||7));const ys=new Date(d.getFullYear(),0,1);return Math.ceil(((d-ys)/864e5+1)/7)}
+/* Palabras escritas por día en cada libro (marcadores hoy/semana/mes/año del Resumen).
+   Se acumula el incremento neto de palabras del libro respecto a la última medición. */
+function logWords(b){if(!b)return;if(!b.wordLog||typeof b.wordLog!=='object')b.wordLog={};const cur=bookWords(b);if(typeof b.wordBase!=='number'){b.wordBase=cur;return}const d=cur-b.wordBase;if(d!==0){const k=dayKey();b.wordLog[k]=(b.wordLog[k]||0)+d;b.wordBase=cur}}
+function monKey(){const d=new Date();const off=(d.getDay()+6)%7;d.setDate(d.getDate()-off);return dayKey(d)}
+function wordStats(b){const log=(b&&b.wordLog)||{};const t=dayKey(),ym=t.slice(0,7),yr=t.slice(0,4),mon=monKey();let h=0,w=0,m=0,y=0;for(const k in log){const v=log[k];if(k===t)h+=v;if(k>=mon)w+=v;if(k.slice(0,7)===ym)m+=v;if(k.slice(0,4)===yr)y+=v}return{h:Math.max(0,h),w:Math.max(0,w),m:Math.max(0,m),y:Math.max(0,y)}}
+/* Etiqueta de capítulo unificada: «CAP N • Título» (N = posición dentro de su libro) */
+const capLbl=(ch,bk)=>`CAP ${bk.chapters.indexOf(ch)+1} • ${ch.title||''}`;
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='4.0.5 · 2026-10-24';
+const APP_VERSION='4.1.0 · 2026-10-25';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -717,7 +732,7 @@ function defMeta(){return{themeId:'oro',accent:null,fontScale:'m',wpm:200,bgImag
 function blank(){return{sagas:[],trash:[],meta:defMeta()}}
 function newSaga(name){return{id:uid(),name,characters:[],places:[],groups:[],tags:[],
   timelines:[{id:uid(),name:'Cronología de '+name,hitos:[]}],languages:[],easterEggs:[],books:[]}}
-function newBook(name){return{id:uid(),name,cover:null,goalWords:0,estado:'en_marcha',idea:'',sinopsis:'',acts:[],chapters:[],badges:[],updated:Date.now()}}
+function newBook(name){return{id:uid(),name,cover:null,goalWords:0,estado:'en_marcha',idea:'',sinopsis:'',acts:[],chapters:[],badges:[],wordLog:{},updated:Date.now()}}
 function newChapter(){return{id:uid(),title:'Capítulo sin título',body:'',indent:true,spacing:'normal',image:null,
   links:[],tagIds:[],actId:null,status:'borrador',scenes:[],versions:[],lastPos:0,updated:Date.now(),created:Date.now()}}
 
@@ -764,6 +779,7 @@ function normalize(){
       if(!Array.isArray(b.acts))b.acts=[];
       if(!Array.isArray(b.chapters))b.chapters=[];
       if(!Array.isArray(b.badges))b.badges=[];
+      if(!b.wordLog||typeof b.wordLog!=='object')b.wordLog={};
       for(const a of b.acts)Object.assign(a,{id:a.id||uid(),name:a.name||'Nuevo acto',order:a.order??10,desc:a.desc||'',estado:STATUS[a.estado]?a.estado:'borrador'});
       for(const c of b.chapters)Object.assign(c,{id:c.id||uid(),title:c.title||'Capítulo sin título',body:c.body||'',
         indent:c.indent!==false,spacing:['compacto','normal','amplio'].includes(c.spacing)?c.spacing:'normal',
@@ -1350,7 +1366,7 @@ function writeCalendar(){
   </div>`;
 }
 function renderResumen(r,s,b){
-  const w=bookWords(b),delta=sessDelta(b);
+  const w=bookWords(b),ws=wordStats(b);
   const scenes=b.chapters.reduce((n,c)=>n+c.scenes.length,0);
   const mins=b.chapters.reduce((n,c)=>n+readMins(chapWords(c)),0);
   const hitos=s.timelines.reduce((n,t)=>n+t.hitos.length,0);
@@ -1366,10 +1382,15 @@ function renderResumen(r,s,b){
         <div class="small muted">${esc(s.name)}</div>
         <h2>${esc(b.name)}</h2>
         <div class="small muted">Última edición: ${fmtDate(b.updated)}</div>
-        <div class="small num" style="margin:6px 0 10px;color:${delta>0?'var(--ok)':'var(--muted)'}">${delta>=0?'+':''}${fmtN(delta)} palabras esta sesión</div>
-        <select style="width:auto" onchange="setBookEstado(this.value)">
-          ${Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}" ${b.estado===k?'selected':''}>${v}</option>`).join('')}
-        </select>
+      </div>
+    </div>
+    <div class="sect" style="margin-top:0">
+      <div class="mini-stats">
+        <div class="mini"><b class="num">${fmtN(ws.h)}</b><span>Hoy</span></div>
+        <div class="mini"><b class="num">${fmtN(ws.w)}</b><span>Semana</span></div>
+        <div class="mini"><b class="num">${fmtN(ws.m)}</b><span>Mes</span></div>
+        <div class="mini"><b class="num">${fmtN(ws.y)}</b><span>Año</span></div>
+        <div class="mini mini-pct" onclick="setGoal()" title="${b.goalWords?'Objetivo: '+fmtN(b.goalWords)+' palabras — toca para cambiarlo':'Toca para fijar un objetivo de palabras'}"><b class="num">${b.goalWords?prog+'%':'—'}</b><span>${b.goalWords?'Escrito':'Sin meta'}</span></div>
       </div>
     </div>
     <div class="sect">${writeCalendar()}</div>
@@ -1393,12 +1414,15 @@ function renderResumen(r,s,b){
       <button class="btn" onclick="expTxt(curBook(),$('#ckNB').checked)">Texto (.txt)</button>
       <label class="small muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ckNB">sin líneas en blanco</label>
     </div></div>
-    <div class="sect"><h2>Ajustes del libro</h2><div class="card row">
+    <div class="sect"><h2>Ajustes del libro</h2><div class="card">
+      <div class="field" style="margin-bottom:12px"><span class="lbl">Estado</span>
+        <select style="width:auto" onchange="setBookEstado(this.value)">${Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}" ${b.estado===k?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="row">
       <button class="btn" onclick="pickCover()">${b.cover?'Cambiar portada':'Añadir portada'}</button>
       ${b.cover?'<button class="btn" onclick="rmCover()">Quitar portada</button>':''}
       <button class="btn" onclick="renameCurBook()">Renombrar</button>
       <button class="btn btn-d" onclick="delCurBook()">Eliminar libro</button>
-    </div></div>
+    </div></div></div>
   </div>`;
 }
 function updBook(k,v){const b=curBook();b[k]=v;b.updated=Date.now();scheduleSave()}
@@ -1582,13 +1606,13 @@ function fillMundo(){
       return;
     }
     let list=filteredChars(s,r);
-    const chapOpts=s.books.map(bk=>bk.chapters.length?`<optgroup label="${esc(bk.name)}">${bk.chapters.map(cc=>`<option value="${cc.id}" ${r.mCap===cc.id?'selected':''}>${esc(cc.title)}</option>`).join('')}</optgroup>`:'').join('');
+    const chapOpts=s.books.map(bk=>bk.chapters.length?`<optgroup label="${esc(bk.name)}">${bk.chapters.map(cc=>`<option value="${cc.id}" ${r.mCap===cc.id?'selected':''}>${esc(capLbl(cc,bk))}</option>`).join('')}</optgroup>`:'').join('');
     const fieldSel=`<select title="Filtrar por un campo de la ficha" onchange="mField(this.value)"><option value="">Campo: ninguno</option>${state.meta.charFields.map(f=>[f.id,f.label]).map(([id,lb])=>`<option value="${id}" ${r.mField===id?'selected':''}>${esc(lb)}</option>`).join('')}</select>`;
     let valCtl='';
     if(r.mField&&r.mField===genderFieldId())valCtl=`<select title="Valor" onchange="mFieldVal(this.value)"><option value="">Género: cualquiera</option>${['Femenino','Masculino','Otros'].map(x=>`<option value="${x}" ${r.mFieldVal===x?'selected':''}>${x}</option>`).join('')}</select>`;
     else if(r.mField)valCtl=`<input id="fldVal" type="search" placeholder="Valor…" value="${esc(r.mFieldVal||'')}" oninput="mFieldVal(this.value)" style="min-width:110px">`;
     const legC=c=>{
-      const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(chp.title);
+      const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(capLbl(chp,bk));
       const relHtml=c.rels.map(id=>{const o=charById(s,id);if(!o)return'';
         const lbl=(c.relLabels||{})[id];
         const av=o.image?`<img class="la" src="${o.image}" alt="">`:`<span class="la ini">${esc((o.name||'?')[0])}</span>`;
@@ -2029,7 +2053,7 @@ function renderChap(r){
     if(ed.querySelector('mark.fmk')){const pos=caretSave();fbClear();caretRestore(pos)}
     if(soloScene){for(const bl of edBlocks())if(!bl.classList.contains('sc-hide'))setBlockScene(bl,soloScene,true)}
     if(edLastRange)ch.lastPos=edLastRange[0]; /* por dónde ibas, para reanudar */
-    ch.body=cleanBody(ed);ch.updated=Date.now();book.updated=Date.now();markWriteDay();scheduleSave();
+    ch.body=cleanBody(ed);ch.updated=Date.now();book.updated=Date.now();markWriteDay();logWords(book);scheduleSave();
     clearTimeout(edCountT);edCountT=setTimeout(()=>updCount(ch),350);
     scheduleHist();
   });
@@ -2206,7 +2230,7 @@ function fbReplace(){
     joined=joined.replace(re,rep);
     ed.innerHTML=joined.split(PMARK).map(h=>`<p>${h.trim()===''?'<br>':h}</p>`).join('');
     const ch=chNow();
-    if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();scheduleSave();updCount(ch)}
+    if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();logWords(curBook());scheduleSave();updCount(ch)}
     toast((n===1?'1 reemplazo':`${n} reemplazos`)+' · párrafos reorganizados');
     fbUpdate(false);
     return;
@@ -2219,7 +2243,7 @@ function fbReplace(){
     if(m){n+=m.length;t.nodeValue=t.nodeValue.replace(re,rep)}
   }
   const ch=chNow();
-  if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();scheduleSave();updCount(ch);pushHistory()}
+  if(ch){ch.body=cleanBody(ed);ch.updated=Date.now();logWords(curBook());scheduleSave();updCount(ch);pushHistory()}
   toast(n===1?'1 reemplazo':`${n} reemplazos`);
   fbUpdate(false);
 }
@@ -2929,7 +2953,7 @@ function charCardText(s,c){
   if(rels.length)L.push(`\nRelaciones:\n${rels.join('\n')}`);
   const grps=s.groups.filter(gr=>gr.members.includes(c.id)).map(gr=>gr.name);
   if(grps.length)L.push(`\nGrupos: ${grps.join(', ')}`);
-  const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(chp.title);
+  const caps=[];for(const bk of s.books)for(const chp of bk.chapters)if(chp.links.some(l=>l.type==='characters'&&l.id===c.id))caps.push(capLbl(chp,bk));
   if(caps.length)L.push(`\nAparece en: ${caps.join(', ')}`);
   return L.join('\n');
 }
@@ -3019,7 +3043,7 @@ function bookChecklist(type,entId){
   if(!b)return '<p class="muted small">Abre un libro para enlazar capítulos.</p>';
   if(!b.chapters.length)return '<p class="muted small">Este libro aún no tiene capítulos.</p>';
   return `<div class="check-list">${b.chapters.map(c=>`<label>
-    <input type="checkbox" ${c.links.some(l=>l.type===type&&l.id===entId)?'checked':''} onchange="toggleChapLink('${c.id}','${type}','${entId}',this.checked)"><span>${esc(c.title)}</span></label>`).join('')}</div>`;
+    <input type="checkbox" ${c.links.some(l=>l.type===type&&l.id===entId)?'checked':''} onchange="toggleChapLink('${c.id}','${type}','${entId}',this.checked)"><span>${esc(capLbl(c,b))}</span></label>`).join('')}</div>`;
 }
 function entOfKind(kind,id,ctx){
   const s=curSaga();
@@ -3039,7 +3063,7 @@ function sagaChecklist(kind,entId,ctx){
   if(!s.books.some(b=>b.chapters.length))return '<p class="muted small">La saga aún no tiene capítulos.</p>';
   return `<div class="check-list">${s.books.map(b=>
     (s.books.length>1?`<div class="grp">${esc(b.name)}</div>`:'')+
-    b.chapters.map(c=>`<label><input type="checkbox" ${e.chapterIds.includes(c.id)?'checked':''} onchange="toggleEntChap('${kind}','${entId}','${ctx||''}','${c.id}',this.checked)"><span>${esc(c.title)}</span></label>`).join('')
+    b.chapters.map(c=>`<label><input type="checkbox" ${e.chapterIds.includes(c.id)?'checked':''} onchange="toggleEntChap('${kind}','${entId}','${ctx||''}','${c.id}',this.checked)"><span>${esc(capLbl(c,b))}</span></label>`).join('')
   ).join('')}</div>`;
 }
 
