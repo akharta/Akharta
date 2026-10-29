@@ -601,10 +601,11 @@ mark.rvk.cur,.rv-blk{background:rgba(224,122,107,.4)}
 #scExit,#spExit{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 12px 30px rgba(0,0,0,.5)}
 @media (max-width:820px){#scExit,#spExit{bottom:calc(100px + env(safe-area-inset-bottom))}}
 .edsplit{display:flex;gap:10px;align-items:stretch;max-width:100%;overflow:hidden}
-.edsplit .cant-pane,.edsplit .fin-pane{flex:1 1 0;width:50%;max-width:50%;min-width:0;display:flex;flex-direction:column}
+.edsplit .cant-pane,.edsplit .fin-pane{flex:1 1 0;width:50%;max-width:50%;min-width:0;box-sizing:border-box;display:flex;flex-direction:column}
 .edsplit .cant-h{flex:none}
-.edsplit #ed,.edsplit #cantera{flex:1 1 auto;min-height:0;height:62vh;max-height:62vh;overflow-y:auto;overflow-x:hidden;overflow-wrap:break-word;word-break:break-word;padding-bottom:24px;-webkit-overflow-scrolling:touch}
-.edsplit #ed{width:100%}
+.edsplit #ed,.edsplit #cantera{box-sizing:border-box;flex:1 1 auto;min-height:0;height:62vh;max-height:62vh;overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;padding-bottom:24px;-webkit-overflow-scrolling:touch}
+.edsplit #ed{width:100%;padding-left:14px;padding-right:14px}
+.edsplit #cantera{padding-left:12px;padding-right:12px}
 .cant-h{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;padding:0 2px;font-weight:600}
 #cantera{min-height:55vh;border:1px dashed var(--line);border-radius:10px;padding:12px;background:var(--surface);font-family:var(--serif);line-height:1.6;outline:none;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word}
 .mini-stats{display:flex;flex-wrap:wrap;gap:8px}
@@ -665,7 +666,7 @@ function wordStats(b){const log=(b&&b.wordLog)||{};const t=dayKey(),ym=t.slice(0
 const capLbl=(ch,bk)=>`CAP ${bk.chapters.indexOf(ch)+1} • ${ch.title||''}`;
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='4.1.0 · 2026-10-25';
+const APP_VERSION='4.1.1 · 2026-10-29';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
