@@ -608,9 +608,12 @@ mark.rvk.cur,.rv-blk{background:rgba(224,122,107,.4)}
 .edsplit #cantera{padding-left:12px;padding-right:12px}
 .cant-h{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;padding:0 2px;font-weight:600}
 #cantera{min-height:55vh;border:1px dashed var(--line);border-radius:10px;padding:12px;background:var(--surface);font-family:var(--serif);line-height:1.6;outline:none;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word}
-/* Una sola tipografía (serif, estilo Times) en el editor y la cantera, aunque se
-   pegue texto con su propia fuente incrustada; también limpia lo ya pegado antes. */
+/* Una sola tipografía (serif, estilo Times) y un solo tamaño en el editor y la
+   cantera, aunque se pegue texto con su fuente/tamaño incrustados; también limpia
+   lo ya pegado antes. Los encabezados (H3) conservan su tamaño mayor. */
 #ed,#ed *,#cantera,#cantera *{font-family:var(--serif)!important}
+#cantera{font-size:var(--fs-ed)}
+#ed *:not(h1):not(h2):not(h3),#cantera *{font-size:inherit!important}
 .mini-stats{display:flex;flex-wrap:wrap;gap:8px}
 .mini{flex:1 1 56px;min-width:56px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 6px;text-align:center}
 .mini b{display:block;font-size:17px;font-family:var(--serif);font-variant-numeric:tabular-nums;line-height:1.1}
@@ -669,7 +672,7 @@ function wordStats(b){const log=(b&&b.wordLog)||{};const t=dayKey(),ym=t.slice(0
 const capLbl=(ch,bk)=>`CAP ${bk.chapters.indexOf(ch)+1} • ${ch.title||''}`;
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='4.1.2 · 2026-10-29';
+const APP_VERSION='4.1.3 · 2026-10-29';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
