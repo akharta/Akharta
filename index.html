@@ -608,6 +608,9 @@ mark.rvk.cur,.rv-blk{background:rgba(224,122,107,.4)}
 .edsplit #cantera{padding-left:12px;padding-right:12px}
 .cant-h{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;padding:0 2px;font-weight:600}
 #cantera{min-height:55vh;border:1px dashed var(--line);border-radius:10px;padding:12px;background:var(--surface);font-family:var(--serif);line-height:1.6;outline:none;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word}
+/* Una sola tipografía (serif, estilo Times) en el editor y la cantera, aunque se
+   pegue texto con su propia fuente incrustada; también limpia lo ya pegado antes. */
+#ed,#ed *,#cantera,#cantera *{font-family:var(--serif)!important}
 .mini-stats{display:flex;flex-wrap:wrap;gap:8px}
 .mini{flex:1 1 56px;min-width:56px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 6px;text-align:center}
 .mini b{display:block;font-size:17px;font-family:var(--serif);font-variant-numeric:tabular-nums;line-height:1.1}
@@ -666,7 +669,7 @@ function wordStats(b){const log=(b&&b.wordLog)||{};const t=dayKey(),ym=t.slice(0
 const capLbl=(ch,bk)=>`CAP ${bk.chapters.indexOf(ch)+1} • ${ch.title||''}`;
 const DEF_VIEWS=()=>({characters:{mode:'grid',size:'m'},places:{mode:'tree',size:'m'},groups:{mode:'grid',size:'m'},easterEggs:{mode:'grid',size:'m'},chapters:{mode:'grid',size:'m'}});
 const TAGPAL=['#256076','#A6761F','#7A3B6B','#3B7A57','#9B3B33','#3F5AA6','#8A6D3B'];
-const APP_VERSION='4.1.1 · 2026-10-29';
+const APP_VERSION='4.1.2 · 2026-10-29';
 /* Marcadores de cronología: jerarquía Año → Mes y día → Capítulo */
 const HKINDS={anio:['Año','#C9A227'],mes:['Mes y día','#3F5AA6'],cap:['Capítulo','#7FB68A']};
 /* Páginas A5 estimadas (márgenes 2/2,5/2,2/1,6 cm, serif 12pt ≈ 1650 caracteres/página) */
@@ -2063,6 +2066,7 @@ function renderChap(r){
     if(e.inputType==='historyUndo'){e.preventDefault();edUndo()}
     else if(e.inputType==='historyRedo'){e.preventDefault();edRedo()}
   });
+  ed.addEventListener('paste',plainPaste);
   $('#tbUndo').onclick=()=>{ed.focus();edUndo()};
   $('#tbRedo').onclick=()=>{ed.focus();edRedo()};
   for(const b of $$('.ed-tools .tb[data-c]')){
@@ -2179,6 +2183,15 @@ function cleanBody(ed){
   for(const el of cl.querySelectorAll('.sc-dim,.sc-hide')){el.classList.remove('sc-dim');el.classList.remove('sc-hide');if(!el.getAttribute('class'))el.removeAttribute('class')}
   cl.normalize();
   return cl.innerHTML;
+}
+/* Pegar siempre como texto plano: descarta fuente, tamaño y color de origen para
+   que el editor y la cantera mantengan una sola tipografía. */
+function plainPaste(e){
+  e.preventDefault();
+  const dt=e.clipboardData||window.clipboardData;
+  const t=dt?dt.getData('text/plain'):'';
+  if(!t)return;
+  document.execCommand('insertText',false,t);
 }
 function fbUpdate(jump){
   fbClear();
@@ -2877,6 +2890,7 @@ function sceneSplit(id){
   splitScene=id;
   const cant=$('#cantera');cant.innerHTML=sc.draft||'';
   cant.addEventListener('input',()=>{const c2=chNow(),x=c2&&c2.scenes.find(z=>z.id===id);if(x){x.draft=cant.innerHTML;markWriteDay();scheduleSave()}});
+  cant.addEventListener('paste',plainPaste);
   splitExitBtn();
   cant.focus();
 }
